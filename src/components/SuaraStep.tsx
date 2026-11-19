@@ -614,7 +614,7 @@ export function SuaraStep({
                                 : 'border-slate-600'
                             }`}
                           >
-                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            {isSelected && <Check className="w-3 h-3 stroke-3" />}
                           </span>
                           <span className="text-sm font-semibold text-white truncate">
                             {voice.name}

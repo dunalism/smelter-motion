@@ -176,7 +176,7 @@ export function ApiKeyModal({ isOpen, onClose, keyState }: ApiKeyModalProps) {
                   <span className="text-amber-200">Belum Ada API Key Gemini</span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-300 mt-0.5 font-mono break-words">
+              <p className="text-[11px] text-slate-300 mt-0.5 font-mono wrap-break-word">
                 {keyState.hasKey
                   ? `${keyState.maskedKey} · ${
                       keyState.storageMode === 'session'

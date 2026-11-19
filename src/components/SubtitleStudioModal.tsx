@@ -84,12 +84,12 @@ function StyleMiniThumbnail({
     >
       {isActive && (
         <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-sky-500 text-slate-950 flex items-center justify-center">
-          <Check className="w-2.5 h-2.5 stroke-[3]" />
+          <Check className="w-2.5 h-2.5 stroke-3" />
         </span>
       )}
 
       {/* Visual mini preview */}
-      <div className="h-12 rounded-lg bg-gradient-to-br from-[#070A12] via-[#111827] to-[#1E293B] border border-[#1E293B] flex items-center justify-center px-2 overflow-hidden mb-2">
+      <div className="h-12 rounded-lg bg-linear-to-br from-[#070A12] via-[#111827] to-[#1E293B] border border-[#1E293B] flex items-center justify-center px-2 overflow-hidden mb-2">
         <span
           style={{
             fontFamily: styleDef.fontFamily,
@@ -341,7 +341,7 @@ export function SubtitleStudioModal({
               )}
             </div>
 
-            <div className="rounded-xl overflow-hidden border border-[#242E42] bg-[#070A12] aspect-[16/10] flex items-center justify-center">
+            <div className="rounded-xl overflow-hidden border border-[#242E42] bg-[#070A12] aspect-16/10 flex items-center justify-center">
               <canvas
                 ref={canvasRef}
                 width={640}
