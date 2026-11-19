@@ -196,4 +196,10 @@ test('all 11 video styles are registered and embedded into prompts with faceless
   const master = buildMasterPrompt('Demo Arsip', [scene], PALETTE_PRESETS['arsip-kuno'], '9:16');
   assert.ok(master.includes('Arsip Kuno'));
   assert.ok(master.includes('720x1280'));
+  assert.ok(master.includes('LARANGAN SUBTITLE GANDA'));
+  assert.ok(master.includes('Area Aman Anti-Terpotong'));
+
+  const paperStyle = getStylePreset('paper-cutout');
+  assert.ok(!paperStyle.sampleCode.includes('Math.floor(s.t * 7)'));
+  assert.ok(paperStyle.animationCardPrompt.includes('RADIAN'));
 });

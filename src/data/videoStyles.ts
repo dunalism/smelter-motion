@@ -276,31 +276,31 @@ s.group({ x: 360, y: 710 + s.lerp(30, 0, k2), alpha: k2 }, () => {
     },
     subtitleDefaults: { style: 'ivory-capsule', animation: 'static' },
     animationCardPrompt: `Paper Cutout (paper cutout: kolase scrapbook gunting kertas ala buku cerita anak, tepi putih seperti stiker, tekstur kertas berserat). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
-Gaya animasi "Paper Cutout": KARTU GAYA (hanya cara menggambar; isi gambar SELALU dari narasi). TEKNIK: kolase gunting kertas ala buku kerajinan anak; setiap benda adalah lembar kertas datar yang digunting, ditempel berlapis. TEPI: garis tepi putih kertas #fffaf0 selebar 8-12px yang sedikit tidak rata seperti stiker yang digunting tangan; TANPA garis tinta. BENTUK: sederhana dan membulat, sedikit tidak simetris, dirakit dari beberapa lembar (benda rumit = beberapa potongan bertumpuk, bukan detail kecil). WARNA: palet lembut alami: biru muda #8fc7e8, hijau muda #a8d98f, tosca #6cc0a8, cokelat hangat #b07a4f, kuning #ffd35c, oranye #f6a04d, merah muda #f3a6c0, putih kertas #fffaf0; tinta biru tua #2c4a78 hanya untuk tulisan tangan. Satu-dua warna dominan per scene, sisanya aksen kecil. TEKSTUR & CAHAYA: setiap isian bertekstur kertas kerajinan (serat pendek sedikit lebih gelap alpha rendah, bintik halus, kesan felt); cahaya merata tanpa kilap; setiap lembar punya bayangan tipis terangkat di bawah-kanan. KEDALAMAN: lapisan belakang, tengah, depan seperti diorama kertas, tiap lapis dengan bayangannya sendiri. TIPOGRAFI: tulisan tangan biru tua di atas potongan kertas bergaris bertepi sobek, ditempel selotip kuning miring (aksen sesekali, bukan di tiap scene). GERAK: ala stop-motion kertas: lembar masuk dengan pop kecil atau geser dari samping, bergoyang 2-4 derajat, tepi bergetar sedikit tiap 3-4 frame; tempo lembut. HINDARI: garis tinta, arsiran coretan, gradasi mengilap, glow, neon, objek 3D bervolume, warna gelap pekat. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
+Gaya animasi "Paper Cutout": KARTU GAYA (hanya cara menggambar; isi gambar SELALU dari narasi). TEKNIK: kolase gunting kertas ala buku kerajinan anak; setiap benda adalah lembar kertas datar yang digunting, ditempel berlapis. TEPI: garis tepi putih kertas #fffaf0 selebar 8-12px yang sedikit tidak rata seperti stiker yang digunting tangan; TANPA garis tinta. BENTUK: sederhana dan membulat, sedikit tidak simetris, dirakit dari beberapa lembar (benda rumit = beberapa potongan bertumpuk, bukan detail kecil). WARNA: palet lembut alami: biru muda #8fc7e8, hijau muda #a8d98f, tosca #6cc0a8, cokelat hangat #b07a4f, kuning #ffd35c, oranye #f6a04d, merah muda #f3a6c0, putih kertas #fffaf0; tinta biru tua #2c4a78 hanya untuk tulisan tangan. Satu-dua warna dominan per scene, sisanya aksen kecil. TEKSTUR & CAHAYA: setiap isian bertekstur kertas kerajinan (serat pendek sedikit lebih gelap alpha rendah, bintik halus, kesan felt); cahaya merata tanpa kilap; setiap lembar punya bayangan tipis terangkat di bawah-kanan. KEDALAMAN: lapisan belakang, tengah, depan seperti diorama kertas, tiap lapis dengan bayangannya sendiri. TIPOGRAFI: tulisan tangan biru tua di atas potongan kertas bergaris bertepi sobek, ditempel selotip kuning miring (aksen sesekali, bukan di tiap scene). GERAK: lembar masuk dengan pop kecil atau geser dari samping, lalu bergoyang sangat lembut dan natural seperti kertas dihembus angin sepoi-sepoi (pakai \`s.wave(0.32, 0.025)\` atau \`Math.sin(s.t * 1.3) * 0.025\`). PENTING: \`rotate\` pada \`s.group\` memakai RADIAN (bukan derajat!), jadi JANGAN pernah beri nilai \`rotate\` lebih dari \`0.06\` radian (~3.4°) dan JANGAN pakai \`Math.floor(s.t * 7)\` yang patah-patah terlalu cepat. Kertas yang berisi tulisan/teks wajib bergoyang sangat halus (maks \`±0.03\` radian) agar tulisannya selalu tegak terbaca dan TIDAK PERNAH terbalik. HINDARI: garis tinta, arsiran coretan, gradasi mengilap, glow, neon, objek 3D bervolume, warna gelap pekat. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
-s.kamera([[0, 360, 620, 1], [3.4, 360, 520, 1.05]]);
+s.kamera([[0, 360, 620, 1], [3.4, 360, 560, 1.03]]);
 s.sfx("pop", 0.25, 0.5);
 s.sfx("pop", 0.85, 0.45);
 
-const step = Math.floor(s.t * 7);
-const rock = Math.sin(step * 0.9) * 0.045;
+const breeze = s.wave(0.32, 0.026) + s.wave(0.18, 0.012, 1.1);
+const textBreeze = s.wave(0.28, 0.018);
 const k1 = s.spring(0.1, "snappy");
 const k2 = s.spring(0.45, "snappy");
 
 // Bukit kertas belakang
 s.group({ x: 360, y: 690, scale: k1 }, () => {
-  s.ellipse(8, 12, 300, 110, { fill: "rgba(44,74,120,0.12)", stroke: "none" });
-  s.ellipse(0, 0, 300, 110, { fill: "#a8d98f", stroke: "#fffaf0", width: 10, wobble: 1.5 });
+  s.ellipse(8, 12, 270, 100, { fill: "rgba(44,74,120,0.12)", stroke: "none" });
+  s.ellipse(0, 0, 270, 100, { fill: "#a8d98f", stroke: "#fffaf0", width: 10, wobble: 1.5 });
 });
 
-// Matahari & bentuk stiker tengah dengan tepi putih 10px
-s.group({ x: 250, y: 390, rotate: rock, scale: k1 }, () => {
+// Matahari & bentuk stiker tengah dengan tepi putih 10px (goyangan angin lembut)
+s.group({ x: 250, y: 390, rotate: breeze, scale: k1 }, () => {
   s.circle(6, 10, 68, { fill: "rgba(44,74,120,0.14)", stroke: "none" });
   s.circle(0, 0, 68, { fill: "#ffd35c", stroke: "#fffaf0", width: 10, wobble: 1.6 });
 });
 
-// Potongan kertas bergaris + selotip kuning
-s.group({ x: 410, y: 540, rotate: -0.04 + rock * 0.5, scale: k2 }, () => {
+// Potongan kertas bergaris + selotip kuning (goyangan sangat halus, tulisan tidak terbalik)
+s.group({ x: 390, y: 540, rotate: -0.02 + textBreeze, scale: k2 }, () => {
   s.rect(-152, -72, 320, 160, { fill: "rgba(44,74,120,0.14)", stroke: "none", radius: 14 });
   s.rect(-160, -80, 320, 160, { fill: "#fffaf0", stroke: "#fffaf0", width: 8, radius: 14 });
   for (let i = 0; i < 4; i++) {
@@ -332,9 +332,9 @@ s.group({ x: 410, y: 540, rotate: -0.04 + rock * 0.5, scale: k2 }, () => {
     },
     subtitleDefaults: { style: 'clean', animation: 'word-highlight' },
     animationCardPrompt: `Kinetik HUD (tipografi kinetik: latar hijau-tinta gelap, huruf condensed putih es, aksen kuning amber, kata bertumpuk & angka berputar). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
-Gaya animasi "Kinetik HUD": Tipografi kinetik: TULISAN adalah visual utama, ilustrasi minimal. Palet: putih es #e6f4f1 untuk teks utama, aksen kuning amber #ffb000, abu kehijauan #4d6461 untuk yang tidak aktif. Teks besar pakai \`s.text3d\` (font condensed tebal otomatis) RATA KIRI di x 70 untuk kalimat yang BERTUMPUK: tiap kata/frasa satu baris (size 90-120), naik dari bawah sambil memudar masuk satu per satu mengikuti narasi, frasa terpenting warna aksen lalu diberi garis bawah aksen tebal yang memanjang. Angka dan jam dibuat seperti ODOMETER: tiap digit berputar vertikal sampai berhenti di nilainya. Elemen khas lain: coretan bar aksen yang mencoret kata satu per satu, huruf raksasa (size 150-200, \`depth: 10-12, side: "#b37a00"\`) yang jatuh masuk huruf demi huruf, stempel kotak bergaris aksen yang menghentak miring, deret blok kecil yang menyala satu per satu sebagai penghitung. Tanpa label pojok atau bingkai layar. Gerakan tegas & berirama: naik, berputar, coret, hentak; tanpa objek 3D, tanpa arsiran, tanpa gambar kartun. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
+Gaya animasi "Kinetik HUD": Tipografi kinetik: TULISAN adalah visual utama, ilustrasi minimal. Palet: putih es #e6f4f1 untuk teks utama, aksen kuning amber #ffb000, abu kehijauan #4d6461 untuk yang tidak aktif. Teks besar pakai \`s.text3d\` (font condensed tebal otomatis) RATA KIRI di x 64-70 untuk kalimat yang BERTUMPUK: tiap kata/frasa pendek (1-2 kata per baris, size 68-96, WAJIB muat di dalam x 64..660 tanpa pernah terpotong tepi kanan!), naik dari bawah sambil memudar masuk satu per satu mengikuti narasi, frasa terpenting warna aksen lalu diberi garis bawah aksen tebal yang memanjang. Angka dan jam dibuat seperti ODOMETER: tiap digit berputar vertikal sampai berhenti di nilainya. Elemen khas lain: coretan bar aksen yang mencoret kata satu per satu, huruf/angka singkat raksasa (size 110-145, \`depth: 10-12, side: "#b37a00"\`, tetap muat dalam area aman) yang jatuh masuk huruf demi huruf, stempel kotak bergaris aksen yang menghentak miring, deret blok kecil yang menyala satu per satu sebagai penghitung. Kamera \`s.kamera\` wajib menjaga zoom lembut (0.95-1.03) dan tetap terpusat agar tidak ada satu pun kata atau elemen yang terpotong di tepi layar. Tanpa label pojok, tanpa bingkai layar, dan JANGAN membuat subtitle sendiri. Gerakan tegas & berirama: naik, berputar, coret, hentak; tanpa objek 3D, tanpa arsiran, tanpa gambar kartun. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
-s.kamera([[0, 360, 620, 1], [3.2, 360, 560, 1.05]]);
+s.kamera([[0, 360, 620, 1], [3.2, 360, 580, 1.02]]);
 s.sfx("tick", 0.4, 0.5);
 s.sfx("impact", 1.5, 0.6);
 
@@ -344,8 +344,8 @@ const lines = ["WAKTU", "BERJALAN", "CEPAT"];
 lines.forEach((word, i) => {
   const k = s.stagger(i, 0.12, 0.28, "snappy");
   const isAccent = i === 2;
-  s.text3d(word, 70, 350 + i * 116 + s.lerp(48, 0, k), {
-    size: 108,
+  s.text3d(word, 70, 350 + i * 108 + s.lerp(42, 0, k), {
+    size: 92,
     color: isAccent ? AMB : ICE,
     condensed: true,
     depth: isAccent ? 10 : 0,
@@ -357,17 +357,17 @@ lines.forEach((word, i) => {
 
 // Garis bawah aksen tebal memanjang
 const ul = s.spring(0.85, "snappy");
-s.rect(70, 646, 410 * ul, 10, { fill: AMB, stroke: "none" });
+s.rect(70, 622, 380 * ul, 10, { fill: AMB, stroke: "none" });
 
 // Penghitung blok kecil menyala berurutan
 for (let i = 0; i < 10; i++) {
   const on = s.t > 0.3 + i * 0.18;
-  s.rect(70 + i * 38, 710, 26, 16, { fill: on ? AMB : DIM, stroke: "none" });
+  s.rect(70 + i * 38, 686, 26, 16, { fill: on ? AMB : DIM, stroke: "none" });
 }
 
 // Angka odometer sederhana
 const val = Math.round(s.lerp(10, 99, s.spring(0.5, "heavy")));
-s.text3d(val + "%", 70, 845, { size: 132, color: ICE, condensed: true, depth: 10, side: "#b37a00", align: "left" });`,
+s.text3d(val + "%", 70, 815, { size: 118, color: ICE, condensed: true, depth: 10, side: "#b37a00", align: "left" });`,
   },
   {
     id: 'reel-tegas',

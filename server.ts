@@ -647,8 +647,10 @@ app.use(
 
 async function startServer() {
   const port = Number(process.env.PORT) || 3000;
+  const isProduction =
+    process.env.NODE_ENV === 'production' || process.argv.includes('--production');
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -657,14 +659,24 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distDir = path.resolve(__dirname, 'dist');
+    const indexHtml = path.join(distDir, 'index.html');
+    try {
+      await fs.access(indexHtml);
+    } catch {
+      console.error(
+        `Build folder tidak ditemukan (${indexHtml}). Jalankan "bun run build" terlebih dahulu.`
+      );
+      process.exit(1);
+    }
     app.use(express.static(distDir));
     app.get('*', (_req, res) => {
-      res.sendFile(path.join(distDir, 'index.html'));
+      res.sendFile(indexHtml);
     });
   }
 
   app.listen(port, '0.0.0.0', () => {
-    console.log(`GerakCanvas studio server listening on http://0.0.0.0:${port}`);
+    const mode = isProduction ? 'production' : 'development';
+    console.log(`GerakCanvas studio server (${mode}) listening on http://localhost:${port}`);
   });
 }
 

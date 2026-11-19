@@ -72,10 +72,13 @@ Untuk setiap scene, buat:
 1. title: Judul singkat scene (contoh: "Hook: Langkah Kegedean")
 2. narration: Kalimat narasi voiceover Bahasa Indonesia sepanjang 4-12 kata sesuai seluruh aturan "Cara menulis narasi" di atas agar terasa seperti satu monolog ngobrol yang nyambung dari scene 1 sampai terakhir.
 3. emphasis: 1-2 kata kunci terpenting dari \`narration\` scene ini yang paling ingin ditegaskan (harus persis ada di dalam teks \`narration\`, mis. "overthinking" atau "mulai dulu"). Kata ini akan otomatis digarisbawahi pada subtitle.
-4. visualBrief: Deskripsi detail objek grafis, ilustrasi/tipografi, teks kunci besar di layar, dan animasi yang terjadi sesuai kartu gaya di atas. (Bila ada tokoh/orang, wajib faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah).
-5. cameraHint: Arahan gerakan kamera (pan/zoom) dalam scene tersebut.
+4. visualBrief: Deskripsi detail objek grafis, ilustrasi/tipografi, kata kunci visual singkat (1-3 kata saja, BUKAN kalimat narasi/subtitle), dan animasi yang terjadi sesuai kartu gaya di atas. (Bila ada tokoh/orang, wajib faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah).
+5. cameraHint: Arahan gerakan kamera (pan/zoom) yang lembut dan tetap terpusat (zoom 0.94-1.05) agar tidak ada objek atau kata yang terpotong di tepi layar.
 6. durationSec: Durasi scene dalam detik. Scene 1 (Hook) singkat sekitar ${hookMaxSec} detik (maks ~10% total durasi), scene terakhir minimal 2.0 detik agar ajakan penutup sempat terbaca, dan total seluruh scene mendekati ${input.targetDurationSec} detik.
 7. code: Kode JavaScript Canvas Motion DSL siap jalan yang menggambar visualBrief scene ini menggunakan API objek \`s\` (dan \`ctx\`):
+   - ATURAN WAJIB ANTI-TERPOTONG (SEMUA GAYA): Tempatkan semua objek & teks di area aman (x antara 8%..92% lebar kanvas, y antara 10%..76% tinggi kanvas). Gunakan \`s.kamera\` dengan \`zoom\` aman \`0.94..1.05\` dan fokus dekat pusat kanvas agar TIDAK ADA kata, huruf, atau objek yang terpotong!
+   - ATURAN WAJIB ANTI-SUBTITLE-GANDA (SEMUA GAYA): Sistem sudah merender subtitle otomatis di area bawah (y >= 78% tinggi kanvas). DILARANG KERAS menggambar subtitle, teks narasi lengkap, atau kotak/kapsul subtitle sendiri di dalam \`code\` pada gaya apa pun! Teks dalam \`code\` hanya untuk label/kata kunci visual singkat (1-3 kata).
+   - ATURAN ROTASI: \`rotate\` pada \`s.group\` memakai RADIAN (mis. \`0.03\` rad = ~1.7°; JANGAN pakai angka derajat seperti \`3\` atau \`45\`), dan JANGAN membalik teks hingga terbalik.
    - s.kamera([[0, cx, cy, 1], [dur, cx2, cy2, zoom]])
    - s.sfx("ding"|"glitch"|"laser"|"tick"|"beep"|"sparkle"|"whoosh"|"pop"|"thud"|"stamp"|"impact", waktu, 0.55)
    - s.group({ x?, y?, scale?, rotate?, alpha? }, () => { ... })

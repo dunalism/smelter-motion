@@ -142,3 +142,122 @@ test('renderSceneFrame renders subtitle with emphasis underline without runtime 
     }
   }
 });
+
+test('renderSceneFrame auto-fits oversized text, flips upside-down text, and suppresses duplicate bottom subtitles', () => {
+  const drawnTexts: Array<{ text: string; font: string; rotatedPi: boolean }> = [];
+  let currentFont = '';
+  let currentTransform = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  const fakeGrad = { addColorStop: () => {} };
+
+  const trackingCtx = new Proxy({} as CanvasRenderingContext2D, {
+    get(_target, prop) {
+      if (prop === 'canvas') return { width: 720, height: 1280 };
+      if (prop === 'createRadialGradient' || prop === 'createLinearGradient') return () => fakeGrad;
+      if (prop === 'measureText') {
+        return (str: string) => {
+          const match = /(\d+)px/.exec(currentFont);
+          const px = match ? Number(match[1]) : 24;
+          return { width: String(str).length * px * 0.55 };
+        };
+      }
+      if (prop === 'getTransform') return () => currentTransform;
+      if (prop === 'rotate') {
+        return (angle: number) => {
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          const { a, b, c, d, e, f } = currentTransform;
+          currentTransform = {
+            a: a * cos + c * sin,
+            b: b * cos + d * sin,
+            c: c * cos - a * sin,
+            d: d * cos - b * sin,
+            e,
+            f,
+          };
+        };
+      }
+      if (prop === 'save' || prop === 'restore') {
+        return () => {};
+      }
+      if (prop === 'fillText') {
+        return (str: string) => {
+          const angle = Math.atan2(currentTransform.b, currentTransform.a);
+          drawnTexts.push({
+            text: str,
+            font: currentFont,
+            rotatedPi: Math.abs(angle) > Math.PI * 0.55,
+          });
+        };
+      }
+      if (prop === 'globalAlpha') return 1;
+      return () => {};
+    },
+    set(_target, prop, value) {
+      if (prop === 'font') currentFont = String(value);
+      return true;
+    },
+  });
+
+  // 1. Oversized text in Kinetik HUD should shrink font size to fit within safe margin
+  const longWordCode = `
+    s.kamera([[0, 360, 620, 1], [1, 360, 620, 1]]);
+    s.text3d("OVERTHINKING", 70, 400, { size: 120, condensed: true, align: "left" });
+  `;
+  const compiledLong = compileSceneCode(longWordCode);
+  assert.ok(compiledLong.fn);
+  renderSceneFrame({
+    ctx: trackingCtx,
+    width: 720,
+    height: 1280,
+    localTime: 0.5,
+    compiledFn: compiledLong.fn,
+    palette: VIDEO_STYLES.find((v) => v.id === 'kinetik-hud')!.palette,
+  });
+  assert.equal(drawnTexts.length, 1);
+  const shrunkSize = Number(/(\d+)px/.exec(drawnTexts[0].font)?.[1] || 120);
+  assert.ok(shrunkSize < 120, `Expected font size to shrink below 120, got ${shrunkSize}`);
+
+  // 2. Duplicate subtitle at bottom should be suppressed when subtitles are enabled
+  drawnTexts.length = 0;
+  currentTransform = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  const dupSubCode = `
+    s.text("JUDUL ATAS", 360, 300, { size: 32, align: "center" });
+    s.text("Ini adalah kalimat narasi yang muncul di bawah.", 360, 1080, { size: 28, align: "center" });
+  `;
+  const compiledDup = compileSceneCode(dupSubCode);
+  assert.ok(compiledDup.fn);
+  renderSceneFrame({
+    ctx: trackingCtx,
+    width: 720,
+    height: 1280,
+    localTime: 0.5,
+    compiledFn: compiledDup.fn,
+    palette: VIDEO_STYLES[0].palette,
+    narration: 'Ini adalah kalimat narasi yang muncul di bawah.',
+    subtitles: { enabled: true, fontSize: 28, position: 'bottom', style: 'clean', animation: 'static' },
+  });
+  assert.ok(drawnTexts.some((d) => d.text === 'JUDUL ATAS'));
+  const subtitleMatches = drawnTexts.filter((d) => d.text.includes('kalimat narasi'));
+  assert.equal(subtitleMatches.length, 1, 'Should render only the official subtitle overlay, not double');
+
+  // 3. Upside-down rotated text should be flipped right-side up
+  drawnTexts.length = 0;
+  currentTransform = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  const upsideDownCode = `
+    s.group({ x: 360, y: 500, rotate: 3.1 }, () => {
+      s.text("TERBALIK", 0, 0, { size: 32, align: "center" });
+    });
+  `;
+  const compiledUpsideDown = compileSceneCode(upsideDownCode);
+  assert.ok(compiledUpsideDown.fn);
+  renderSceneFrame({
+    ctx: trackingCtx,
+    width: 720,
+    height: 1280,
+    localTime: 0.5,
+    compiledFn: compiledUpsideDown.fn,
+    palette: VIDEO_STYLES[0].palette,
+  });
+  assert.equal(drawnTexts.length, 1);
+  assert.equal(drawnTexts[0].rotatedPi, false, 'Upside-down text should be corrected upright');
+});

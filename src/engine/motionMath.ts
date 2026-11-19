@@ -351,7 +351,9 @@ export function buildDSLSpecification(palette: PalettePreset, dims: { width: num
 ${stylePreset.animationCardPrompt}
 
 SPESIFIKASI CANVAS MOTION DSL (objek global: s, dan konteks mentah: ctx / s.ctx):
-- Ukuran Canvas Referensi: ${dims.width} x ${dims.height} (pusat X=${dims.width / 2}, Y=${dims.height / 2}). Sisakan area y=${Math.round(dims.height * 0.8)}..${dims.height} relatif tenang untuk subtitle.
+- Ukuran Canvas Referensi: ${dims.width} x ${dims.height} (pusat X=${dims.width / 2}, Y=${dims.height / 2}).
+- Area Aman Anti-Terpotong (WAJIB SEMUA GAYA): Tempatkan seluruh objek & teks di x=${Math.round(dims.width * 0.08)}..${Math.round(dims.width * 0.92)}, y=${Math.round(dims.height * 0.1)}..${Math.round(dims.height * 0.76)} agar tidak ada kata atau objek yang terpotong di tepi kanvas.
+- Area Subtitle Otomatis (LARANGAN SUBTITLE GANDA): Area y=${Math.round(dims.height * 0.78)}..${dims.height} WAJIB KOSONG dari teks/subtitle buatan kode! Sistem sudah merender subtitle otomatis dari narasi. JANGAN PERNAH menggambar subtitle, teks narasi lengkap, atau kotak subtitle sendiri di dalam kode pada gaya animasi apa pun!
 - Palet Warna Aktif (${palette.name}):
   Latar Kanvas: "${palette.bg}"
   Primary: "${palette.primary}", Secondary: "${palette.secondary}", Accent: "${palette.accent}", Text: "${palette.text}"
@@ -359,7 +361,7 @@ SPESIFIKASI CANVAS MOTION DSL (objek global: s, dan konteks mentah: ctx / s.ctx)
   s.t -> waktu berjalan dalam detik (0 .. durasi scene).
   s.ease.back(u), s.ease.sharp(u), s.ease.smooth(u), s.ease.in(u), s.ease.out(u), s.ease.inOut(u)
 - Kamera & Audio SFX:
-  s.kamera([[t, x, y, zoom], ...]) -> animasi posisi fokus kamera & zoom secara halus.
+  s.kamera([[t, x, y, zoom], ...]) -> animasi posisi fokus kamera & zoom secara halus. Jaga zoom aman di rentang 0.94..1.05 dan fokus (x, y) dekat pusat kanvas agar tidak ada objek/kata yang terpotong.
   s.sfx(nama, waktuDetik, volume?, pitch?) -> efek suara ("glitch", "ding", "laser", "tick", "beep", "sparkle", "whoosh", "pop", "thud", "stamp", "impact").
 - Fungsi Animasi & Utilitas:
   s.spring(startTime, "smooth" | "heavy" | "snappy" | "bouncy" | "fast") -> 0..1
@@ -370,7 +372,7 @@ SPESIFIKASI CANVAS MOTION DSL (objek global: s, dan konteks mentah: ctx / s.ctx)
   s.lerp(a, b, t) -> interpolasi linear
   s.rand(seed) -> angka acak deterministik 0..1
 - Primitif Gambar & Gaya:
-  s.group({ x?, y?, scale?, rotate?, alpha? }, () => { ... })
+  s.group({ x?, y?, scale?, rotate?, alpha? }, () => { ... })  // CATATAN: rotate dalam RADIAN (mis. 0.03 = ~1.7°; JANGAN masukkan derajat seperti 3 atau 45 agar teks tidak terbalik!)
   s.rect(x, y, w, h, { fill?, stroke?, width?, alpha?, draw?, radius?, wobble?, hatch? })
   s.circle(x, y, r, { fill?, stroke?, width?, alpha?, draw?, wobble?, hatch? })
   s.ellipse(x, y, rx, ry, { fill?, stroke?, width?, alpha?, draw?, rotate?, wobble?, hatch? })

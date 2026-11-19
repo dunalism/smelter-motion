@@ -22,6 +22,8 @@ import {
   FileCode2,
   KeyRound,
   Loader2,
+  Maximize2,
+  Minimize2,
   Palette,
   Pause,
   Play,
@@ -58,6 +60,78 @@ export function AnimasiStep({
   const [aiError, setAiError] = useState<string | null>(null);
   const [needsApiKeyAction, setNeedsApiKeyAction] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const previewContainerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const fsEl =
+        document.fullscreenElement ||
+        (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement;
+      setIsFullscreen(Boolean(fsEl && fsEl === previewContainerRef.current));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.fullscreenElement) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  const handleToggleFullscreen = async () => {
+    const el = previewContainerRef.current as
+      | (HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void })
+      | null;
+    if (!el) return;
+
+    const fsEl =
+      document.fullscreenElement ||
+      (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement;
+
+    if (fsEl) {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else {
+          const doc = document as Document & { webkitExitFullscreen?: () => Promise<void> | void };
+          await doc.webkitExitFullscreen?.();
+        }
+      } catch {
+        setIsFullscreen(false);
+      }
+      return;
+    }
+
+    if (isFullscreen) {
+      setIsFullscreen(false);
+      return;
+    }
+
+    try {
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        await el.webkitRequestFullscreen();
+      } else {
+        setIsFullscreen(true);
+      }
+    } catch {
+      // Fallback to theater/fullscreen overlay if native fullscreen is blocked
+      setIsFullscreen(true);
+    }
+  };
 
   useEffect(() => {
     if (hasApiKey && needsApiKeyAction) {
@@ -667,15 +741,43 @@ export function AnimasiStep({
         </section>
 
         {/* Right Pane: Live Canvas Viewport + Controls + Timeline */}
-        <section className="lg:col-span-5 flex flex-col bg-[#121722] border border-[#222A3A] rounded-xl overflow-hidden">
+        <section
+          ref={previewContainerRef}
+          className={
+            isFullscreen
+              ? 'fixed inset-0 z-50 flex flex-col bg-[#07090E] overflow-hidden'
+              : 'lg:col-span-5 flex flex-col bg-[#121722] border border-[#222A3A] rounded-xl overflow-hidden'
+          }
+        >
           {/* Canvas Stage */}
-          <div className="flex-1 bg-[#07090E] p-4 flex items-center justify-center min-h-[340px] overflow-hidden">
+          <div
+            onDoubleClick={handleToggleFullscreen}
+            title="Klik dua kali untuk layar penuh"
+            className="relative flex-1 bg-[#07090E] p-4 flex items-center justify-center min-h-[340px] overflow-hidden"
+          >
+            <button
+              type="button"
+              onClick={handleToggleFullscreen}
+              aria-label={isFullscreen ? 'Keluar dari layar penuh' : 'Layar penuh preview video'}
+              title={isFullscreen ? 'Keluar Layar Penuh (Esc)' : 'Layar Penuh'}
+              className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#121722]/85 hover:bg-[#1C2436] border border-[#2B364B] text-slate-200 hover:text-white text-xs backdrop-blur-sm transition-colors shadow-lg"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="w-3.5 h-3.5" aria-hidden="true" />
+              ) : (
+                <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
+              )}
+              <span>{isFullscreen ? 'Keluar' : 'Full Screen'}</span>
+            </button>
+
             <div
               className="relative shadow-2xl border border-[#232B3D] rounded-lg overflow-hidden bg-black"
               style={{
                 aspectRatio: `${dims.width} / ${dims.height}`,
-                maxHeight: 'calc(100vh - 290px)',
-                maxWidth: '100%',
+                maxHeight: isFullscreen ? 'calc(100vh - 150px)' : 'calc(100vh - 290px)',
+                maxWidth: isFullscreen
+                  ? `calc((100vh - 150px) * ${dims.width} / ${dims.height})`
+                  : '100%',
                 height: project.aspectRatio === '9:16' ? '100%' : 'auto',
                 width: project.aspectRatio === '9:16' ? 'auto' : '100%',
               }}
@@ -815,6 +917,24 @@ export function AnimasiStep({
                 >
                   <Captions className="w-3.5 h-3.5" />
                   <span>Sub</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  aria-label={isFullscreen ? 'Keluar dari layar penuh' : 'Mode layar penuh'}
+                  title={isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh'}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs ${
+                    isFullscreen
+                      ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                      : 'bg-[#182030] border-[#2B364B] text-slate-200 hover:text-white'
+                  }`}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  ) : (
+                    <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  )}
                 </button>
               </div>
             </div>

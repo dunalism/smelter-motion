@@ -469,9 +469,12 @@ export function renderSceneFrame({
         cameraApplied = true;
         ctx.save();
         const cam = evaluateCamera(localTime, keyframes, width, height);
+        const safeZoom = clamp(cam.zoom, 0.82, 1.08);
+        const safeX = clamp(cam.x, width * 0.35, width * 0.65);
+        const safeY = clamp(cam.y, height * 0.32, height * 0.68);
         ctx.translate(width / 2, height / 2);
-        ctx.scale(cam.zoom, cam.zoom);
-        ctx.translate(-cam.x, -cam.y);
+        ctx.scale(safeZoom, safeZoom);
+        ctx.translate(-safeX, -safeY);
       }
     },
     sfx: () => {},
@@ -790,21 +793,64 @@ export function renderSceneFrame({
       const alpha = opts.alpha === undefined ? 1 : clamp(opts.alpha, 0, 1);
       if (alpha <= 0 || str === undefined || str === null) return;
 
-      const size = opts.size ?? 24;
+      const textStr = String(str);
+      let size = opts.size ?? 24;
       const weight = opts.weight ?? 600;
       const font = opts.font ?? 'Outfit, system-ui, sans-serif';
       const color = opts.color ?? opts.fill ?? palette.text;
+      const align = opts.align ?? 'left';
+
+      const m = typeof ctx.getTransform === 'function' ? ctx.getTransform() : null;
+      const px = m ? m.a * x + m.c * y + m.e : x;
+      const py = m ? m.b * x + m.d * y + m.f : y;
+
+      if (subtitles?.enabled && narration && narration.trim().length > 0 && py >= height * 0.74) {
+        const normText = textStr.trim().toLowerCase().replace(/\s+/g, ' ');
+        const normNarr = narration.trim().toLowerCase().replace(/\s+/g, ' ');
+        const wordCount = normText ? normText.split(' ').length : 0;
+        if (
+          wordCount >= 4 ||
+          normText === normNarr ||
+          (wordCount >= 3 && normNarr.includes(normText))
+        ) {
+          return;
+        }
+      }
 
       ctx.save();
       ctx.globalAlpha *= alpha;
       ctx.font = `${weight} ${size}px ${font}`;
-      ctx.textAlign = opts.align ?? 'left';
+      ctx.textAlign = align;
       ctx.textBaseline = opts.baseline ?? 'middle';
       ctx.fillStyle = color;
+
+      if (m) {
+        const angle = Math.atan2(m.b, m.a);
+        if (Math.abs(angle) > Math.PI * 0.55) {
+          ctx.translate(x, y);
+          ctx.rotate(Math.PI);
+          ctx.translate(-x, -y);
+        }
+      }
+
+      const scaleX = m ? Math.hypot(m.a, m.b) || 1 : 1;
+      const margin = Math.max(24, Math.round(width * 0.04));
+      const availPx =
+        align === 'left'
+          ? Math.max(40, width - margin - px)
+          : align === 'right'
+            ? Math.max(40, px - margin)
+            : Math.max(40, 2 * Math.min(px - margin, width - margin - px));
+      const measuredW = ctx.measureText(textStr).width * scaleX;
+      if (measuredW > availPx && measuredW > 0 && !opts.maxWidth) {
+        size = Math.max(12, Math.floor(size * (availPx / measuredW)));
+        ctx.font = `${weight} ${size}px ${font}`;
+      }
+
       if (opts.maxWidth) {
-        ctx.fillText(String(str), x, y, opts.maxWidth);
+        ctx.fillText(textStr, x, y, opts.maxWidth);
       } else {
-        ctx.fillText(String(str), x, y);
+        ctx.fillText(textStr, x, y);
       }
       ctx.restore();
     },
@@ -814,7 +860,8 @@ export function renderSceneFrame({
       const alpha = opts.alpha === undefined ? 1 : clamp(opts.alpha, 0, 1);
       if (alpha <= 0 || str === undefined || str === null) return;
 
-      const size = opts.size ?? 72;
+      const textStr = String(str);
+      let size = opts.size ?? 72;
       const weight = opts.weight ?? 800;
       const family = opts.serif
         ? "'Playfair Display', Georgia, serif"
@@ -824,22 +871,63 @@ export function renderSceneFrame({
       const color = opts.color ?? palette.text;
       const depth = Math.max(0, Math.round(opts.depth ?? 0));
       const sideColor = opts.side ?? '#333333';
+      const align = opts.align ?? 'center';
+
+      const m = typeof ctx.getTransform === 'function' ? ctx.getTransform() : null;
+      const px = m ? m.a * x + m.c * y + m.e : x;
+      const py = m ? m.b * x + m.d * y + m.f : y;
+
+      if (subtitles?.enabled && narration && narration.trim().length > 0 && py >= height * 0.74) {
+        const normText = textStr.trim().toLowerCase().replace(/\s+/g, ' ');
+        const normNarr = narration.trim().toLowerCase().replace(/\s+/g, ' ');
+        const wordCount = normText ? normText.split(' ').length : 0;
+        if (
+          wordCount >= 4 ||
+          normText === normNarr ||
+          (wordCount >= 3 && normNarr.includes(normText))
+        ) {
+          return;
+        }
+      }
 
       ctx.save();
       ctx.globalAlpha *= alpha;
       ctx.font = `${weight} ${size}px ${family}`;
-      ctx.textAlign = opts.align ?? 'center';
+      ctx.textAlign = align;
       ctx.textBaseline = opts.baseline ?? 'middle';
+
+      if (m) {
+        const angle = Math.atan2(m.b, m.a);
+        if (Math.abs(angle) > Math.PI * 0.55) {
+          ctx.translate(x, y);
+          ctx.rotate(Math.PI);
+          ctx.translate(-x, -y);
+        }
+      }
+
+      const scaleX = m ? Math.hypot(m.a, m.b) || 1 : 1;
+      const margin = Math.max(24, Math.round(width * 0.04));
+      const availPx =
+        align === 'left'
+          ? Math.max(40, width - margin - px)
+          : align === 'right'
+            ? Math.max(40, px - margin)
+            : Math.max(40, 2 * Math.min(px - margin, width - margin - px));
+      const measuredW = ctx.measureText(textStr).width * scaleX;
+      if (measuredW > availPx && measuredW > 0 && !opts.maxWidth) {
+        size = Math.max(14, Math.floor(size * (availPx / measuredW)));
+        ctx.font = `${weight} ${size}px ${family}`;
+      }
 
       if (depth > 0) {
         ctx.fillStyle = sideColor;
         for (let i = depth; i >= 1; i--) {
-          ctx.fillText(String(str), x + i * 0.85, y + i * 0.85, opts.maxWidth);
+          ctx.fillText(textStr, x + i * 0.85, y + i * 0.85, opts.maxWidth);
         }
       }
 
       ctx.fillStyle = color;
-      ctx.fillText(String(str), x, y, opts.maxWidth);
+      ctx.fillText(textStr, x, y, opts.maxWidth);
       ctx.restore();
     },
     sparkle: (x, y, size, opts = {}) => {
