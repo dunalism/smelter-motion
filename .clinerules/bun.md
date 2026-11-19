@@ -17,3 +17,23 @@
 
 - Only maintain `bun.lock` / `bun.lockb`. Do NOT generate `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`.
 - When running on Windows, if platform-specific native bindings (e.g., `@rolldown/binding-win32-x64-msvc` or `@tailwindcss/oxide-win32-x64-msvc`) are missing, resolve them using `bun install --force` or `bun add -d <binding-package>`.
+
+## Token Efficiency & Concise Communication Rules
+
+- **Ultra-Concise Output (Caveman Style):** Eliminate conversational filler, greetings, apologies, and verbose explanations. State actions and results in 1 short sentence or bullet max.
+- **Targeted File Reading:**
+  - Use `search_files` or `list_code_definition_names` BEFORE calling `read_file` on unfamiliar files.
+  - NEVER re-read a file you already read in the current session unless it was modified externally.
+  - NEVER read lockfiles (`bun.lock`, `package-lock.json`), `node_modules`, or `dist` folders.
+- **Minimal Command Output:** When running terminal commands that produce verbose logs (e.g., `bun test`, `git log`), pipe or pass flags to limit output (e.g., `--silent`, `git status -s`, `git diff --stat`) so large stdout logs do not flood the context window.
+
+## Token-Efficient File Editing & Syntax Integrity Rules
+
+- **ALWAYS prefer `replace_in_file` over `write_to_file`** for existing files to conserve output tokens. Only use `write_to_file` when creating a brand-new file or editing a tiny file (< 60 lines).
+- **Exact Boundary Anchoring (Anti-Orphaned Brackets):**
+  - Every `SEARCH` block MUST start at the **beginning of a unique statement/tag** and end at its **exact matching closing line** (including its closing `}`, `);`, `)}`, or `</Tag>`).
+  - Include **3–5 unchanged lines before and after** the target block so the `SEARCH` anchor is 100% unique and never matches the wrong closing brace.
+  - NEVER end a `SEARCH` block mid-expression or omit the old closing lines—this prevents leftover/duplicate `)}`, `});`, or `</div>` tokens below the replacement.
+- **Strict Top-to-Bottom Ordering:** When using multiple `SEARCH/REPLACE` blocks in a single `replace_in_file` call, order them strictly from top to bottom of the file, and keep each block focused on one self-contained scope (e.g., one function, one hook, or one JSX element).
+- **Pre-Tool Delimiter Count:** Before calling `replace_in_file`, verify that the net balance of `(`, `)`, `{`, `}`, `[`, `]` in the `REPLACE` block matches the exact structural intent of the `SEARCH` block.
+- **Single-Pass Verification:** After editing TypeScript/TSX files, run `bun run lint` (`tsc --noEmit`) once at the end of the task rather than guessing or doing blind re-edits.

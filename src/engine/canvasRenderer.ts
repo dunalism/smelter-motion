@@ -1,5 +1,10 @@
 import type { PalettePreset, SfxCall, SubtitleSettings } from '../types/studio';
 import {
+  findEmphasisRanges,
+  renderSubtitleOverlay,
+} from './subtitleRenderer';
+export { findEmphasisRanges };
+import {
   at,
   clamp,
   ease,
@@ -1109,214 +1114,21 @@ export function renderSceneFrame({
   }
 
   if (subtitles?.enabled && narration && narration.trim().length > 0) {
-    renderSubtitleOverlay(
+    renderSubtitleOverlay({
       ctx,
       width,
       height,
-      narration.trim(),
+      text: narration.trim(),
       subtitles,
       localTime,
       sceneDuration,
       emphasis,
-      palette
-    );
+      palette,
+    });
   }
 
   ctx.restore();
   return runtimeError;
 }
 
-export function findEmphasisRanges(line: string, emphasis?: string): Array<[number, number]> {
-  const needle = (emphasis || '').trim().toLowerCase();
-  if (!needle || !line) return [];
 
-  const haystack = line.toLowerCase();
-  const ranges: Array<[number, number]> = [];
-  let searchFrom = 0;
-
-  while (searchFrom < haystack.length) {
-    const idx = haystack.indexOf(needle, searchFrom);
-    if (idx === -1) break;
-
-    const end = idx + needle.length;
-    const beforeChar = idx > 0 ? haystack[idx - 1] : ' ';
-    const afterChar = end < haystack.length ? haystack[end] : ' ';
-    const isWordBoundaryBefore = !/[a-z0-9]/i.test(beforeChar);
-    const isWordBoundaryAfter = !/[a-z0-9]/i.test(afterChar);
-
-    if (isWordBoundaryBefore && isWordBoundaryAfter) {
-      ranges.push([idx, end]);
-    }
-    searchFrom = end;
-  }
-
-  // Fallback if emphasis is a partial word or wrapped across punctuation not caught by boundary check
-  if (ranges.length === 0) {
-    const idx = haystack.indexOf(needle);
-    if (idx !== -1) {
-      ranges.push([idx, idx + needle.length]);
-    }
-  }
-
-  return ranges;
-}
-
-function renderSubtitleOverlay(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  text: string,
-  subtitles: SubtitleSettings,
-  localTime: number,
-  sceneDuration: number,
-  emphasis?: string,
-  palette?: PalettePreset
-): void {
-  const fontSize = subtitles.fontSize || 28;
-  const maxWidth = width * 0.84;
-  const animation = subtitles.animation || 'static';
-  const progress = clamp(localTime / Math.max(0.8, sceneDuration * 0.82), 0, 1);
-
-  const visibleText =
-    animation === 'typewriter'
-      ? text.slice(0, Math.max(1, Math.ceil(text.length * progress)))
-      : text;
-
-  ctx.save();
-  ctx.font = `700 ${fontSize}px Outfit, DM Sans, system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  const words = visibleText.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let current = '';
-  for (const w of words) {
-    const candidate = current ? `${current} ${w}` : w;
-    if (ctx.measureText(candidate).width > maxWidth && current) {
-      lines.push(current);
-      current = w;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current) lines.push(current);
-  if (lines.length === 0) {
-    ctx.restore();
-    return;
-  }
-
-  const lineHeight = fontSize * 1.32;
-  const totalHeight = lines.length * lineHeight;
-  const baseY = subtitles.position === 'lower-third' ? height * 0.78 : height * 0.86;
-  const startY = baseY - totalHeight / 2 + lineHeight / 2;
-
-  if (subtitles.style === 'boxed' || subtitles.style === 'ivory-capsule') {
-    const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
-    const padX = 24;
-    const padY = 14;
-    ctx.beginPath();
-    ctx.roundRect(
-      width / 2 - widest / 2 - padX,
-      baseY - totalHeight / 2 - padY,
-      widest + padX * 2,
-      totalHeight + padY * 2,
-      subtitles.style === 'ivory-capsule' ? 20 : 12
-    );
-    if (subtitles.style === 'ivory-capsule') {
-      ctx.fillStyle = 'rgba(250, 246, 236, 0.94)';
-      ctx.fill();
-      ctx.strokeStyle = '#C8B698';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    } else {
-      ctx.fillStyle = 'rgba(7, 10, 18, 0.78)';
-      ctx.fill();
-    }
-  }
-
-  const totalWords = text.split(/\s+/).filter(Boolean).length;
-  const activeWordIdx = Math.min(totalWords - 1, Math.floor(progress * totalWords));
-  let wordCounter = 0;
-
-  lines.forEach((line, i) => {
-    const y = startY + i * lineHeight;
-    if (animation === 'word-highlight') {
-      const lineWords = line.split(/\s+/);
-      const totalLineW = ctx.measureText(line).width;
-      let cursorX = width / 2 - totalLineW / 2;
-      ctx.textAlign = 'left';
-      lineWords.forEach((w, wi) => {
-        const isCurrent = wordCounter === activeWordIdx;
-        const spaceW = wi < lineWords.length - 1 ? ctx.measureText(w + ' ').width : ctx.measureText(w).width;
-        if (subtitles.style === 'clean') {
-          ctx.lineWidth = 6;
-          ctx.strokeStyle = 'rgba(5, 8, 16, 0.92)';
-          ctx.lineJoin = 'round';
-          ctx.strokeText(w, cursorX, y);
-        }
-        ctx.fillStyle = isCurrent
-          ? subtitles.style === 'ivory-capsule'
-            ? '#A6893A'
-            : '#ffd166'
-          : subtitles.style === 'ivory-capsule'
-            ? '#2B2B2B'
-            : '#ffffff';
-        ctx.fillText(w, cursorX, y);
-        cursorX += spaceW;
-        wordCounter++;
-      });
-      ctx.textAlign = 'center';
-    } else {
-      if (subtitles.style === 'clean') {
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = 'rgba(5, 8, 16, 0.92)';
-        ctx.lineJoin = 'round';
-        ctx.strokeText(line, width / 2, y);
-      }
-      ctx.fillStyle = subtitles.style === 'ivory-capsule' ? '#2B2B2B' : '#ffffff';
-      ctx.fillText(line, width / 2, y);
-    }
-
-    // Draw emphasis underline if this line contains the emphasis word/phrase
-    const emphasisRanges = findEmphasisRanges(line, emphasis);
-    if (emphasisRanges.length > 0) {
-      const totalLineW = ctx.measureText(line).width;
-      const lineStartX = width / 2 - totalLineW / 2;
-      const underlineY = y + fontSize * 0.52;
-      const underlineColor =
-        subtitles.style === 'ivory-capsule'
-          ? '#B45309'
-          : palette?.accent || '#ffd166';
-      const underlineWidth = Math.max(2.5, Math.round(fontSize * 0.1));
-
-      for (const [mStart, mEnd] of emphasisRanges) {
-        const prefixW = ctx.measureText(line.slice(0, mStart)).width;
-        const matchW = ctx.measureText(line.slice(mStart, mEnd)).width;
-        if (matchW <= 0) continue;
-
-        const x1 = lineStartX + prefixW;
-        const x2 = x1 + matchW;
-
-        ctx.save();
-        ctx.lineCap = 'round';
-        if (subtitles.style === 'clean') {
-          ctx.strokeStyle = 'rgba(5, 8, 16, 0.85)';
-          ctx.lineWidth = underlineWidth + 3;
-          ctx.beginPath();
-          ctx.moveTo(x1, underlineY);
-          ctx.lineTo(x2, underlineY);
-          ctx.stroke();
-        }
-        ctx.strokeStyle = underlineColor;
-        ctx.lineWidth = underlineWidth;
-        ctx.beginPath();
-        ctx.moveTo(x1, underlineY);
-        ctx.lineTo(x2, underlineY);
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
-  });
-
-  ctx.restore();
-}

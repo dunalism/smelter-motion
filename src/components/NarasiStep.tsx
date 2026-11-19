@@ -1,7 +1,14 @@
+import { useState } from 'react';
 import type { ProjectState, SceneItem } from '../types/studio';
-import { formatTimecode, getTotalDuration } from '../engine/motionMath';
+import { formatTimecode, getTotalDuration, PALETTE_PRESETS } from '../engine/motionMath';
+import {
+  extractAutoEmphasisKeywords,
+  resolveSubtitleConfig,
+  SUBTITLE_ANIMATIONS,
+} from '../engine/subtitleConfig';
 import { SeoPanel } from './SeoPanel';
-import { ArrowDown, ArrowRight, ArrowUp, Plus, Trash2 } from 'lucide-react';
+import { SubtitleStudioModal } from './SubtitleStudioModal';
+import { ArrowDown, ArrowRight, ArrowUp, Plus, SlidersHorizontal, Trash2, Wand2 } from 'lucide-react';
 
 interface NarasiStepProps {
   project: ProjectState;
@@ -18,7 +25,12 @@ export function NarasiStep({
   hasApiKey,
   onOpenApiKeyModal,
 }: NarasiStepProps) {
+  const [isSubtitleStudioOpen, setIsSubtitleStudioOpen] = useState(false);
   const totalSec = getTotalDuration(project.scenes);
+  const palette = PALETTE_PRESETS[project.paletteId] || PALETTE_PRESETS['cyber-hologram'];
+  const resolvedSub = resolveSubtitleConfig(project.subtitles, palette);
+  const animLabel =
+    SUBTITLE_ANIMATIONS.find((a) => a.id === resolvedSub.entrance)?.name || resolvedSub.entrance;
 
   const updateScene = (id: string, patch: Partial<SceneItem>) => {
     onUpdateProject((prev) => ({
@@ -116,94 +128,38 @@ export function NarasiStep({
 
         {/* Subtitle Preferences Strip */}
         <section className="bg-[#121722] border border-[#222A3A] rounded-xl px-5 py-4 flex flex-wrap items-center justify-between gap-4">
-          <label className="inline-flex items-center gap-2.5 text-sm font-medium text-slate-200 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={project.subtitles.enabled}
-              onChange={(e) =>
-                onUpdateProject((prev) => ({
-                  ...prev,
-                  subtitles: { ...prev.subtitles, enabled: e.target.checked },
-                }))
-              }
-              className="w-4 h-4 rounded border-slate-600 bg-[#0B0E14] text-sky-500 focus:ring-sky-500"
-            />
-            <span>Tampilkan Subtitle Otomatis di Video</span>
-          </label>
-
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            <div className="flex items-center gap-2">
-              <label htmlFor="sub-style" className="text-slate-400">
-                Gaya
-              </label>
-              <select
-                id="sub-style"
-                value={project.subtitles.style}
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2.5 text-sm font-medium text-slate-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={project.subtitles.enabled}
                 onChange={(e) =>
                   onUpdateProject((prev) => ({
                     ...prev,
-                    subtitles: {
-                      ...prev.subtitles,
-                      style: e.target.value as 'clean' | 'boxed' | 'ivory-capsule',
-                    },
+                    subtitles: { ...prev.subtitles, enabled: e.target.checked },
                   }))
                 }
-                className="bg-[#0B0E14] border border-[#2A3346] rounded-md px-2.5 py-1.5 text-slate-200"
-              >
-                <option value="boxed">Kotak Gelap</option>
-                <option value="clean">Teks Outline</option>
-                <option value="ivory-capsule">Kapsul Gading</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label htmlFor="sub-anim" className="text-slate-400">
-                Animasi
-              </label>
-              <select
-                id="sub-anim"
-                value={project.subtitles.animation || 'static'}
-                onChange={(e) =>
-                  onUpdateProject((prev) => ({
-                    ...prev,
-                    subtitles: {
-                      ...prev.subtitles,
-                      animation: e.target.value as 'static' | 'typewriter' | 'word-highlight',
-                    },
-                  }))
-                }
-                className="bg-[#0B0E14] border border-[#2A3346] rounded-md px-2.5 py-1.5 text-slate-200"
-              >
-                <option value="static">Statis</option>
-                <option value="typewriter">Mesin Ketik</option>
-                <option value="word-highlight">Sorot Kata</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label htmlFor="sub-size" className="text-slate-400">
-                Ukuran
-              </label>
-              <select
-                id="sub-size"
-                value={project.subtitles.fontSize}
-                onChange={(e) =>
-                  onUpdateProject((prev) => ({
-                    ...prev,
-                    subtitles: {
-                      ...prev.subtitles,
-                      fontSize: Number(e.target.value),
-                    },
-                  }))
-                }
-                className="bg-[#0B0E14] border border-[#2A3346] rounded-md px-2.5 py-1.5 text-slate-200 tabular-nums"
-              >
-                <option value={22}>22 px</option>
-                <option value={28}>28 px</option>
-                <option value={34}>34 px</option>
-              </select>
+                className="w-4 h-4 rounded border-slate-600 bg-[#0B0E14] text-sky-500 focus:ring-sky-500"
+              />
+              <span>Tampilkan Subtitle Otomatis di Video</span>
+            </label>
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-[#0B0E14] border border-[#242E42] rounded-lg px-2.5 py-1">
+              <span className="text-sky-300 font-medium">{resolvedSub.styleDef.name}</span>
+              <span aria-hidden="true">·</span>
+              <span className="text-amber-300/90">{animLabel}</span>
+              <span aria-hidden="true">·</span>
+              <span className="font-mono">{resolvedSub.fontSize}px</span>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setIsSubtitleStudioOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-sky-500/15 border border-sky-400/40 text-xs font-semibold text-sky-300 hover:bg-sky-500/25 transition-colors"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Desain &amp; Preview Subtitle</span>
+          </button>
         </section>
 
         {/* Scene Cards */}
@@ -310,24 +266,38 @@ export function NarasiStep({
                           htmlFor={`emphasis-${scene.id}`}
                           className="text-xs font-medium text-amber-300/90"
                         >
-                          Kata Penekanan (Digarisbawahi di Subtitle)
+                          Kata Penekanan (Emphasis di Subtitle)
                         </label>
-                        {scene.emphasis && (
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => updateScene(scene.id, { emphasis: '' })}
-                            className="text-[11px] text-slate-400 hover:text-slate-200"
+                            onClick={() =>
+                              updateScene(scene.id, {
+                                emphasis: extractAutoEmphasisKeywords(scene.narration, 2).join(', '),
+                              })
+                            }
+                            className="inline-flex items-center gap-1 text-[11px] text-amber-300 hover:text-amber-200"
                           >
-                            Hapus
+                            <Wand2 className="w-3 h-3" />
+                            <span>Auto</span>
                           </button>
-                        )}
+                          {scene.emphasis && (
+                            <button
+                              type="button"
+                              onClick={() => updateScene(scene.id, { emphasis: '' })}
+                              className="text-[11px] text-slate-400 hover:text-slate-200"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <input
                         id={`emphasis-${scene.id}`}
                         type="text"
                         value={scene.emphasis ?? ''}
                         onChange={(e) => updateScene(scene.id, { emphasis: e.target.value })}
-                        placeholder="Pilih atau ketik 1-2 kata dari narasi..."
+                        placeholder="Pilih kata di bawah atau ketik (pisahkan koma)..."
                         className="w-full bg-[#0B0E14] border border-[#263042] rounded-lg px-3 py-1.5 text-xs text-amber-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
                       />
                       {scene.narration.trim().length > 0 && (
@@ -338,17 +308,27 @@ export function NarasiStep({
                             .map((rawWord, wi) => {
                               const cleanWord = rawWord.replace(/^[.,!?;:"'()]+|[.,!?;:"'()]+$/g, '');
                               if (!cleanWord) return null;
-                              const isSelected =
-                                (scene.emphasis || '').trim().toLowerCase() === cleanWord.toLowerCase();
+                              const existingList = (scene.emphasis || '')
+                                .split(',')
+                                .map((s) => s.trim())
+                                .filter(Boolean);
+                              const isSelected = existingList.some(
+                                (item) => item.toLowerCase() === cleanWord.toLowerCase()
+                              );
                               return (
                                 <button
                                   key={`${scene.id}-w-${wi}`}
                                   type="button"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    const nextList = isSelected
+                                      ? existingList.filter(
+                                          (item) => item.toLowerCase() !== cleanWord.toLowerCase()
+                                        )
+                                      : [...existingList, cleanWord];
                                     updateScene(scene.id, {
-                                      emphasis: isSelected ? '' : cleanWord,
-                                    })
-                                  }
+                                      emphasis: nextList.join(', '),
+                                    });
+                                  }}
                                   className={`px-2 py-0.5 rounded text-[11px] border transition-colors ${
                                     isSelected
                                       ? 'bg-amber-500/20 border-amber-400/60 text-amber-200 underline decoration-amber-400'
@@ -414,6 +394,14 @@ export function NarasiStep({
           onOpenApiKeyModal={onOpenApiKeyModal}
         />
       </div>
+
+      <SubtitleStudioModal
+        isOpen={isSubtitleStudioOpen}
+        onClose={() => setIsSubtitleStudioOpen(false)}
+        project={project}
+        palette={palette}
+        onUpdateProject={onUpdateProject}
+      />
     </main>
   );
 }

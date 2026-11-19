@@ -15,6 +15,7 @@ import {
 import { compileSceneCode, extractSfxCalls, renderSceneFrame } from '../engine/canvasRenderer';
 import { triggerSfxAt } from '../engine/sfxSynthesizer';
 import { ApiRequestError, postJson } from '../utils/api';
+import { SubtitleStudioModal } from './SubtitleStudioModal';
 import {
   Check,
   Code2,
@@ -28,6 +29,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  SlidersHorizontal,
   Sparkles,
   Volume2,
   VolumeX,
@@ -61,6 +63,7 @@ export function AnimasiStep({
   const [needsApiKeyAction, setNeedsApiKeyAction] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSubtitleStudioOpen, setIsSubtitleStudioOpen] = useState(false);
 
   const previewContainerRef = useRef<HTMLElement | null>(null);
 
@@ -921,6 +924,17 @@ export function AnimasiStep({
 
                 <button
                   type="button"
+                  onClick={() => setIsSubtitleStudioOpen(true)}
+                  aria-label="Desain Subtitle"
+                  title="Desain & Preview Subtitle"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#2B364B] bg-[#182030] text-slate-200 hover:text-sky-300 hover:border-sky-500/40 text-xs"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Gaya Sub</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleToggleFullscreen}
                   aria-label={isFullscreen ? 'Keluar dari layar penuh' : 'Mode layar penuh'}
                   title={isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh'}
@@ -941,6 +955,14 @@ export function AnimasiStep({
           </div>
         </section>
       </div>
+
+      <SubtitleStudioModal
+        isOpen={isSubtitleStudioOpen}
+        onClose={() => setIsSubtitleStudioOpen(false)}
+        project={project}
+        palette={palette}
+        onUpdateProject={onUpdateProject}
+      />
     </main>
   );
 }
