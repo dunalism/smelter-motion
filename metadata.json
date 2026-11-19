@@ -1,0 +1,6 @@
+{
+  "name": "GerakCanvas",
+  "description": "Studio pembuat video motion berbasis JavaScript Canvas dengan alur Ide, Narasi, Suara AI, Tempel Kode Animasi per Scene, dan Eksport Video.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
