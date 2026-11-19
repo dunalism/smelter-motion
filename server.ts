@@ -12,6 +12,11 @@ import {
   buildScriptGenerationPrompt,
   SCRIPT_SYSTEM_INSTRUCTION,
 } from './src/engine/scriptPrompt';
+import {
+  buildSeoGenerationPrompt,
+  sanitizeSeoMetadata,
+  SEO_SYSTEM_INSTRUCTION,
+} from './src/engine/seoPrompt';
 import { resolveTtsModel, resolveVoiceName } from './src/data/ttsVoices';
 import { buildFfmpegMp4Args, isMp4Buffer } from './src/engine/mp4ExportHelpers';
 
@@ -265,6 +270,19 @@ app.post('/api/generate-script', async (req, res) => {
         type: Type.OBJECT,
         properties: {
           title: { type: Type.STRING, description: 'Judul proyek video yang menarik' },
+          seo: {
+            type: Type.OBJECT,
+            properties: {
+              primaryKeyword: { type: Type.STRING },
+              secondaryKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+              title: { type: Type.STRING },
+              description: { type: Type.STRING },
+              short: { type: Type.STRING },
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+              hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ['title', 'description', 'short', 'tags', 'hashtags'],
+          },
           scenes: {
             type: Type.ARRAY,
             items: {
@@ -272,12 +290,21 @@ app.post('/api/generate-script', async (req, res) => {
               properties: {
                 title: { type: Type.STRING },
                 narration: { type: Type.STRING },
+                emphasis: { type: Type.STRING },
                 visualBrief: { type: Type.STRING },
                 cameraHint: { type: Type.STRING },
                 durationSec: { type: Type.NUMBER },
                 code: { type: Type.STRING },
               },
-              required: ['title', 'narration', 'visualBrief', 'cameraHint', 'durationSec', 'code'],
+              required: [
+                'title',
+                'narration',
+                'emphasis',
+                'visualBrief',
+                'cameraHint',
+                'durationSec',
+                'code',
+              ],
             },
           },
         },
@@ -285,23 +312,85 @@ app.post('/api/generate-script', async (req, res) => {
       },
     });
 
-    const parsed = parseJsonSafely<{ title?: string; scenes?: Array<Record<string, unknown>> }>(
-      response.text ?? '{}'
-    );
+    const parsed = parseJsonSafely<{
+      title?: string;
+      seo?: Record<string, unknown>;
+      scenes?: Array<Record<string, unknown>>;
+    }>(response.text ?? '{}');
     if (Array.isArray(parsed.scenes)) {
       parsed.scenes = parsed.scenes.map((sc) => ({
         ...sc,
+        emphasis: typeof sc.emphasis === 'string' ? sc.emphasis.trim() : '',
         code:
           typeof sc.code === 'string'
             ? sc.code.replace(/^(\/\/\s*=+\s*SCENE\s*\d+\s*=+)[ \t]+(?=\S)/i, '$1\n')
             : '',
       }));
     }
+    if (parsed.seo) {
+      parsed.seo = sanitizeSeoMetadata(parsed.seo) as unknown as Record<string, unknown>;
+    }
     res.json(parsed);
   } catch (err) {
     const formatted = formatApiErrorResponse(
       err,
       'Gagal membuat skrip otomatis.',
+      req.header('x-gemini-api-key')
+    );
+    res.status(formatted.status).json(formatted.body);
+  }
+});
+
+app.post('/api/generate-seo', async (req, res) => {
+  try {
+    const {
+      title = '',
+      topic = '',
+      narrations = [],
+      creatorPromo = '',
+    } = req.body ?? {};
+
+    const cleanNarrations = Array.isArray(narrations)
+      ? narrations.map((n) => String(n ?? '').trim()).filter(Boolean)
+      : [];
+
+    if (cleanNarrations.length === 0 && !String(topic || title).trim()) {
+      res.status(400).json({ error: 'Naskah atau topik video diperlukan untuk membuat SEO.' });
+      return;
+    }
+
+    const ai = requireUserGeminiClient(req, 'v1beta');
+    const prompt = buildSeoGenerationPrompt({
+      title: String(title || ''),
+      topic: String(topic || ''),
+      narrations: cleanNarrations,
+      creatorPromo: String(creatorPromo || ''),
+    });
+
+    const response = await generateTextWithFallback(ai, prompt, {
+      systemInstruction: SEO_SYSTEM_INSTRUCTION,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          primaryKeyword: { type: Type.STRING },
+          secondaryKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+          title: { type: Type.STRING },
+          description: { type: Type.STRING },
+          short: { type: Type.STRING },
+          tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+          hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
+        },
+        required: ['title', 'description', 'short', 'tags', 'hashtags'],
+      },
+    });
+
+    const parsed = parseJsonSafely<Record<string, unknown>>(response.text ?? '{}');
+    res.json({ seo: sanitizeSeoMetadata(parsed) });
+  } catch (err) {
+    const formatted = formatApiErrorResponse(
+      err,
+      'Gagal membuat metadata SEO.',
       req.header('x-gemini-api-key')
     );
     res.status(formatted.status).json(formatted.body);

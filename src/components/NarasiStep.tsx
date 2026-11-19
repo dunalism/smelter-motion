@@ -1,14 +1,23 @@
 import type { ProjectState, SceneItem } from '../types/studio';
 import { formatTimecode, getTotalDuration } from '../engine/motionMath';
+import { SeoPanel } from './SeoPanel';
 import { ArrowDown, ArrowRight, ArrowUp, Plus, Trash2 } from 'lucide-react';
 
 interface NarasiStepProps {
   project: ProjectState;
   onUpdateProject: (updater: (prev: ProjectState) => ProjectState) => void;
   onNextStep: () => void;
+  hasApiKey: boolean;
+  onOpenApiKeyModal: () => void;
 }
 
-export function NarasiStep({ project, onUpdateProject, onNextStep }: NarasiStepProps) {
+export function NarasiStep({
+  project,
+  onUpdateProject,
+  onNextStep,
+  hasApiKey,
+  onOpenApiKeyModal,
+}: NarasiStepProps) {
   const totalSec = getTotalDuration(project.scenes);
 
   const updateScene = (id: string, patch: Partial<SceneItem>) => {
@@ -295,6 +304,64 @@ export function NarasiStep({ project, onUpdateProject, onNextStep }: NarasiStepP
                       onChange={(e) => updateScene(scene.id, { narration: e.target.value })}
                       className="w-full bg-[#0B0E14] border border-[#263042] rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
                     />
+                    <div className="mt-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label
+                          htmlFor={`emphasis-${scene.id}`}
+                          className="text-xs font-medium text-amber-300/90"
+                        >
+                          Kata Penekanan (Digarisbawahi di Subtitle)
+                        </label>
+                        {scene.emphasis && (
+                          <button
+                            type="button"
+                            onClick={() => updateScene(scene.id, { emphasis: '' })}
+                            className="text-[11px] text-slate-400 hover:text-slate-200"
+                          >
+                            Hapus
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        id={`emphasis-${scene.id}`}
+                        type="text"
+                        value={scene.emphasis ?? ''}
+                        onChange={(e) => updateScene(scene.id, { emphasis: e.target.value })}
+                        placeholder="Pilih atau ketik 1-2 kata dari narasi..."
+                        className="w-full bg-[#0B0E14] border border-[#263042] rounded-lg px-3 py-1.5 text-xs text-amber-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
+                      />
+                      {scene.narration.trim().length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {scene.narration
+                            .trim()
+                            .split(/\s+/)
+                            .map((rawWord, wi) => {
+                              const cleanWord = rawWord.replace(/^[.,!?;:"'()]+|[.,!?;:"'()]+$/g, '');
+                              if (!cleanWord) return null;
+                              const isSelected =
+                                (scene.emphasis || '').trim().toLowerCase() === cleanWord.toLowerCase();
+                              return (
+                                <button
+                                  key={`${scene.id}-w-${wi}`}
+                                  type="button"
+                                  onClick={() =>
+                                    updateScene(scene.id, {
+                                      emphasis: isSelected ? '' : cleanWord,
+                                    })
+                                  }
+                                  className={`px-2 py-0.5 rounded text-[11px] border transition-colors ${
+                                    isSelected
+                                      ? 'bg-amber-500/20 border-amber-400/60 text-amber-200 underline decoration-amber-400'
+                                      : 'bg-[#0B0E14] border-[#263042] text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                                  }`}
+                                >
+                                  {cleanWord}
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-3">
@@ -338,6 +405,14 @@ export function NarasiStep({ project, onUpdateProject, onNextStep }: NarasiStepP
             );
           })}
         </div>
+
+        {/* SEO & Caption Generator Section */}
+        <SeoPanel
+          project={project}
+          onUpdateProject={onUpdateProject}
+          hasApiKey={hasApiKey}
+          onOpenApiKeyModal={onOpenApiKeyModal}
+        />
       </div>
     </main>
   );

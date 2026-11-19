@@ -3,15 +3,27 @@ import type { ProjectState } from '../types/studio';
 import { formatTimecode, getCanvasDimensions, getTotalDuration } from '../engine/motionMath';
 import { buildExportFileName } from '../engine/mp4ExportHelpers';
 import { exportProjectVideo, type ExportProgress, type ExportResult } from '../engine/videoExporter';
-import { Download, Film, Loader2, X } from 'lucide-react';
+import { SeoPanel } from './SeoPanel';
+import { Download, Film, Loader2, Sparkles, X } from 'lucide-react';
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   project: ProjectState;
+  onUpdateProject: (updater: (prev: ProjectState) => ProjectState) => void;
+  hasApiKey: boolean;
+  onOpenApiKeyModal: () => void;
 }
 
-export function ExportModal({ isOpen, onClose, project }: ExportModalProps) {
+export function ExportModal({
+  isOpen,
+  onClose,
+  project,
+  onUpdateProject,
+  hasApiKey,
+  onOpenApiKeyModal,
+}: ExportModalProps) {
+  const [activeTab, setActiveTab] = useState<'export' | 'seo'>('export');
   const [fps, setFps] = useState<number>(30);
   const [includeAudio, setIncludeAudio] = useState<boolean>(true);
   const [isExporting, setIsExporting] = useState(false);
@@ -80,14 +92,42 @@ export function ExportModal({ isOpen, onClose, project }: ExportModalProps) {
       aria-labelledby="export-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
     >
-      <div className="w-full max-w-lg bg-[#121722] border border-[#263044] rounded-xl overflow-hidden shadow-2xl">
-        <div className="px-5 py-4 border-b border-[#222A3A] flex items-center justify-between">
+      <div className="w-full max-w-2xl bg-[#121722] border border-[#263044] rounded-xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-[#222A3A] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2.5">
             <Film className="w-5 h-5 text-sky-400" aria-hidden="true" />
             <h2 id="export-modal-title" className="font-display text-lg font-semibold text-white">
-              Eksport Video MP4
+              Eksport Video &amp; SEO
             </h2>
           </div>
+
+          <div className="flex items-center gap-1 bg-[#0B0E14] border border-[#222A3A] rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('export')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeTab === 'export'
+                  ? 'bg-sky-500 text-slate-950 font-semibold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Render MP4</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('seo')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeTab === 'seo'
+                  ? 'bg-sky-500 text-slate-950 font-semibold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>SEO &amp; Caption</span>
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleCancelOrClose}
@@ -97,6 +137,19 @@ export function ExportModal({ isOpen, onClose, project }: ExportModalProps) {
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {activeTab === 'seo' ? (
+          <div className="p-5 overflow-y-auto">
+            <SeoPanel
+              project={project}
+              onUpdateProject={onUpdateProject}
+              hasApiKey={hasApiKey}
+              onOpenApiKeyModal={onOpenApiKeyModal}
+              compact
+            />
+          </div>
+        ) : (
+        <>
 
         <div className="p-5 space-y-5">
           <div className="grid grid-cols-4 gap-3 text-center bg-[#0B0E14] border border-[#222A3A] rounded-lg p-3">
@@ -233,6 +286,8 @@ export function ExportModal({ isOpen, onClose, project }: ExportModalProps) {
             <span>{isExporting ? 'Merender MP4...' : 'Mulai Render MP4'}</span>
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

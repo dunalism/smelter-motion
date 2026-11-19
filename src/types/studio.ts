@@ -57,11 +57,22 @@ export interface SceneItem {
   index: number;
   title: string;
   narration: string;
+  emphasis?: string;
   visualBrief: string;
   cameraHint: string;
   durationSec: number;
   code: string;
   audio: SceneAudio;
+}
+
+export interface SeoMetadata {
+  primaryKeyword?: string;
+  secondaryKeywords?: string[];
+  title: string;
+  description: string;
+  short: string;
+  tags: string[];
+  hashtags: string[];
 }
 
 export type SubtitleStyle = 'clean' | 'boxed' | 'ivory-capsule';
@@ -87,6 +98,7 @@ export interface ProjectState {
   masterAudioName?: string;
   masterAudioDurationSec?: number;
   scenes: SceneItem[];
+  seo?: SeoMetadata;
 }
 
 export interface SfxCall {

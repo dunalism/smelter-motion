@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { AspectRatio, PaletteId, ProjectState, SceneItem } from '../types/studio';
+import type { AspectRatio, PaletteId, ProjectState, SceneItem, SeoMetadata } from '../types/studio';
+import { sanitizeSeoMetadata } from '../engine/seoPrompt';
 import {
   formatTimecode,
   getStylePreset,
@@ -118,6 +119,7 @@ export function IdeStep({
     try {
       const data = await postJson<{
         title?: string;
+        seo?: Partial<SeoMetadata>;
         scenes?: Array<Record<string, unknown>>;
       }>('/api/generate-script', {
         topic: topicInput.trim(),
@@ -144,6 +146,7 @@ export function IdeStep({
           index: idx,
           title: String(sc.title || `Scene ${idx + 1}`),
           narration: String(sc.narration || ''),
+          emphasis: typeof sc.emphasis === 'string' ? sc.emphasis.trim() : '',
           visualBrief: String(sc.visualBrief || ''),
           cameraHint: String(sc.cameraHint || ''),
           durationSec: Math.max(1.5, Number(sc.durationSec) || 4.5),
@@ -165,6 +168,7 @@ export function IdeStep({
         aspectRatio,
         paletteId,
         scenes: generatedScenes,
+        seo: data.seo ? sanitizeSeoMetadata(data.seo) : prev.seo,
       }));
       onNextStep();
     } catch (err) {

@@ -78,6 +78,8 @@ export default function App() {
           project={project}
           onUpdateProject={setProject}
           onNextStep={() => setActiveStep('suara')}
+          hasApiKey={apiKeyState.hasKey}
+          onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         />
       )}
 
@@ -104,6 +106,9 @@ export default function App() {
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         project={project}
+        onUpdateProject={setProject}
+        hasApiKey={apiKeyState.hasKey}
+        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
       />
 
       <ApiKeyModal

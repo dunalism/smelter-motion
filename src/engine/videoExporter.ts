@@ -317,6 +317,7 @@ async function tryExportWithWebCodecsMp4(params: {
         compiledFn: compiledEntry?.compiled.fn ?? null,
         palette,
         narration: resolved.scene?.narration,
+        emphasis: resolved.scene?.emphasis,
         subtitles: project.subtitles,
       });
 
@@ -548,6 +549,7 @@ async function exportWithMediaRecorderAndFfmpeg(params: {
         compiledFn: compiledEntry?.compiled.fn ?? null,
         palette,
         narration: resolved.scene?.narration,
+        emphasis: resolved.scene?.emphasis,
         subtitles: project.subtitles,
       });
 

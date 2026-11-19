@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compileSceneCode, extractSfxCalls, renderSceneFrame } from './canvasRenderer';
+import {
+  compileSceneCode,
+  extractSfxCalls,
+  findEmphasisRanges,
+  renderSceneFrame,
+} from './canvasRenderer';
 import { SCENE_4_CODE, SCENE_5_CODE, SCENE_6_CODE } from '../data/demoProject';
 import { VIDEO_STYLES } from '../data/videoStyles';
 
@@ -87,6 +92,53 @@ test('All 11 video styles compile and render across timestamps with zero runtime
         },
       });
       assert.equal(runtimeErr, null, `Runtime error for style ${style.id} at t=${t}: ${runtimeErr}`);
+    }
+  }
+});
+
+test('findEmphasisRanges matches emphasis words case-insensitively with boundaries', () => {
+  const line = 'Awalnya sinyal tampak kacau, lalu jadi stabil.';
+  const ranges = findEmphasisRanges(line, 'kacau');
+  assert.equal(ranges.length, 1);
+  assert.equal(line.slice(ranges[0][0], ranges[0][1]), 'kacau');
+
+  const multiRanges = findEmphasisRanges('Gunakan pemindai bukti aktif sekarang.', 'PEMINDAI BUKTI');
+  assert.equal(multiRanges.length, 1);
+  assert.equal(
+    'Gunakan pemindai bukti aktif sekarang.'.slice(multiRanges[0][0], multiRanges[0][1]),
+    'pemindai bukti'
+  );
+
+  assert.deepEqual(findEmphasisRanges(line, ''), []);
+  assert.deepEqual(findEmphasisRanges(line, 'tidakada'), []);
+});
+
+test('renderSceneFrame renders subtitle with emphasis underline without runtime errors', () => {
+  const mockCtx = createMockCanvasContext();
+  const compiled = compileSceneCode(SCENE_4_CODE);
+  assert.ok(compiled.fn);
+
+  for (const style of ['clean', 'boxed', 'ivory-capsule'] as const) {
+    for (const animation of ['static', 'typewriter', 'word-highlight'] as const) {
+      const err = renderSceneFrame({
+        ctx: mockCtx,
+        width: 720,
+        height: 1280,
+        localTime: 1.5,
+        sceneDuration: 4.16,
+        compiledFn: compiled.fn,
+        palette: VIDEO_STYLES[0].palette,
+        narration: 'Awalnya sinyal tampak kacau dan penuh gangguan.',
+        emphasis: 'kacau',
+        subtitles: {
+          enabled: true,
+          fontSize: 28,
+          position: 'bottom',
+          style,
+          animation,
+        },
+      });
+      assert.equal(err, null);
     }
   }
 });

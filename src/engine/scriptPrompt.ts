@@ -1,3 +1,5 @@
+import { SEO_METADATA_RULES } from './seoPrompt';
+
 export interface ScriptPromptInput {
   topic: string;
   styleTone: string;
@@ -69,10 +71,11 @@ ${NARRATION_WRITING_RULES}
 Untuk setiap scene, buat:
 1. title: Judul singkat scene (contoh: "Hook: Langkah Kegedean")
 2. narration: Kalimat narasi voiceover Bahasa Indonesia sepanjang 4-12 kata sesuai seluruh aturan "Cara menulis narasi" di atas agar terasa seperti satu monolog ngobrol yang nyambung dari scene 1 sampai terakhir.
-3. visualBrief: Deskripsi detail objek grafis, ilustrasi/tipografi, teks kunci besar di layar, dan animasi yang terjadi sesuai kartu gaya di atas. (Bila ada tokoh/orang, wajib faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah).
-4. cameraHint: Arahan gerakan kamera (pan/zoom) dalam scene tersebut.
-5. durationSec: Durasi scene dalam detik. Scene 1 (Hook) singkat sekitar ${hookMaxSec} detik (maks ~10% total durasi), scene terakhir minimal 2.0 detik agar ajakan penutup sempat terbaca, dan total seluruh scene mendekati ${input.targetDurationSec} detik.
-6. code: Kode JavaScript Canvas Motion DSL siap jalan yang menggambar visualBrief scene ini menggunakan API objek \`s\` (dan \`ctx\`):
+3. emphasis: 1-2 kata kunci terpenting dari \`narration\` scene ini yang paling ingin ditegaskan (harus persis ada di dalam teks \`narration\`, mis. "overthinking" atau "mulai dulu"). Kata ini akan otomatis digarisbawahi pada subtitle.
+4. visualBrief: Deskripsi detail objek grafis, ilustrasi/tipografi, teks kunci besar di layar, dan animasi yang terjadi sesuai kartu gaya di atas. (Bila ada tokoh/orang, wajib faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah).
+5. cameraHint: Arahan gerakan kamera (pan/zoom) dalam scene tersebut.
+6. durationSec: Durasi scene dalam detik. Scene 1 (Hook) singkat sekitar ${hookMaxSec} detik (maks ~10% total durasi), scene terakhir minimal 2.0 detik agar ajakan penutup sempat terbaca, dan total seluruh scene mendekati ${input.targetDurationSec} detik.
+7. code: Kode JavaScript Canvas Motion DSL siap jalan yang menggambar visualBrief scene ini menggunakan API objek \`s\` (dan \`ctx\`):
    - s.kamera([[0, cx, cy, 1], [dur, cx2, cy2, zoom]])
    - s.sfx("ding"|"glitch"|"laser"|"tick"|"beep"|"sparkle"|"whoosh"|"pop"|"thud"|"stamp"|"impact", waktu, 0.55)
    - s.group({ x?, y?, scale?, rotate?, alpha? }, () => { ... })
@@ -88,5 +91,8 @@ Untuk setiap scene, buat:
    - s.sparkle(x, y, size, { stroke?, fill?, alpha? }), s.burst(x, y, r, { draw?, count?, stroke? })
    - Helper Belah Warna (jika gaya Belah Warna): s.field(a, b), s.both(a, b, (main, shade, back) => ...), s.slab(x, y, w, h, d, r, main, shade), s.disc(x, y, r, main, back), s.word(str, x, y, size, progress)
    - s.ease.back(u), s.ease.sharp(u), s.ease.smooth(u), s.spring(startTime, "smooth"|"heavy"|"snappy"|"bouncy"|"fast"), s.stagger(i, start, step, preset), s.keys([[t, v], ...]), s.at(start, dur), s.wave(freq, amp), s.lerp(a, b, t), s.rand(seed), s.t.
-   Awali setiap code dengan komentar // ===== SCENE N ===== di baris sendiri dan jangan pakai import/export.`;
+   Awali setiap code dengan komentar // ===== SCENE N ===== di baris sendiri dan jangan pakai import/export.
+
+Selain \`title\` dan \`scenes\`, buat juga objek \`seo\` berdasarkan seluruh naskah yang sudah disusun:
+${SEO_METADATA_RULES}`;
 }

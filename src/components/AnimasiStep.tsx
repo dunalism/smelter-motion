@@ -138,6 +138,7 @@ export function AnimasiStep({
       compiledFn: entry?.compiled.fn ?? null,
       palette,
       narration: resolved.scene?.narration,
+      emphasis: resolved.scene?.emphasis,
       subtitles: project.subtitles,
     });
     setRuntimeError(err);
@@ -610,8 +611,36 @@ export function AnimasiStep({
           {/* Active Scene Brief Bar */}
           {activeScene && (
             <div className="px-4 py-2 bg-[#141A26] border-b border-[#222A3A] flex flex-wrap items-center justify-between gap-2 text-xs">
-              <span className="font-medium text-slate-200 truncate">{activeScene.title}</span>
-              <span className="text-slate-400 truncate max-w-md">{activeScene.narration}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-medium text-slate-200 truncate">{activeScene.title}</span>
+                <span className="text-slate-500 hidden sm:inline">·</span>
+                <span className="text-slate-400 truncate max-w-xs hidden sm:inline">
+                  {activeScene.narration}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <label
+                  htmlFor="animasi-emphasis-input"
+                  className="text-[11px] font-medium text-slate-400"
+                >
+                  Garis bawah:
+                </label>
+                <input
+                  id="animasi-emphasis-input"
+                  type="text"
+                  value={activeScene.emphasis ?? ''}
+                  onChange={(e) =>
+                    onUpdateProject((prev) => ({
+                      ...prev,
+                      scenes: prev.scenes.map((sc, idx) =>
+                        idx === safeIdx ? { ...sc, emphasis: e.target.value } : sc
+                      ),
+                    }))
+                  }
+                  placeholder="kata emphasis"
+                  className="w-32 bg-[#0B0E14] border border-[#263042] rounded px-2 py-1 text-[11px] text-amber-300 placeholder:text-slate-600 focus:outline-none focus:border-sky-500"
+                />
+              </div>
             </div>
           )}
 
