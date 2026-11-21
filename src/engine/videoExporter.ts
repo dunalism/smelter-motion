@@ -8,6 +8,7 @@ import {
 } from './motionMath';
 import { compileSceneCode, extractSfxCalls, renderSceneFrame } from './canvasRenderer';
 import { triggerSfxAt } from './sfxSynthesizer';
+import { preloadProjectAudioTimings } from './wordTiming';
 import {
   ensureEvenDimension,
   hasProjectAudioSources,
@@ -319,6 +320,8 @@ async function tryExportWithWebCodecsMp4(params: {
         narration: resolved.scene?.narration,
         emphasis: resolved.scene?.emphasis,
         subtitles: project.subtitles,
+        audioDataUrl: resolved.scene?.audio.dataUrl,
+        audioDurationSec: resolved.scene?.audio.durationSec,
       });
 
       const frame = new VideoFrame(offscreen, {
@@ -551,6 +554,8 @@ async function exportWithMediaRecorderAndFfmpeg(params: {
         narration: resolved.scene?.narration,
         emphasis: resolved.scene?.emphasis,
         subtitles: project.subtitles,
+        audioDataUrl: resolved.scene?.audio.dataUrl,
+        audioDurationSec: resolved.scene?.audio.durationSec,
       });
 
       const percent = 4 + Math.min(78, Math.round((clampedTime / totalSec) * 78));
@@ -628,6 +633,7 @@ export async function exportProjectVideo({
   const totalSec = Math.max(0.5, getTotalDuration(project.scenes));
 
   onProgress({ phase: 'preparing', percent: 2, currentSec: 0, totalSec });
+  await preloadProjectAudioTimings(project.scenes).catch(() => {});
 
   const compiledScenes: CompiledSceneEntry[] = project.scenes.map((sc) => ({
     scene: sc,

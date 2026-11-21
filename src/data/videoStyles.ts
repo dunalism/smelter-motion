@@ -18,7 +18,7 @@ export const VIDEO_STYLES: VideoStylePreset[] = [
       text: '#f0f7ff',
       isLight: false,
     },
-    subtitleDefaults: { style: 'boxed', animation: 'static' },
+    subtitleDefaults: { style: 'neon' },
     animationCardPrompt:
       'Gaya animasi "Hologram Cyan": Latar gelap ruang kendali holografik (#060913), set arsitektur tipis alpha rendah, garis wireframe cyan #29e7ff, violet #b26bff, aksen magenta #ff3fd1, bracket pengunci sudut, garis scan bergerak, teks HUD tajam. Semua tokoh/orang wajib faceless.',
     sampleCode: `// ===== SCENE 1 =====
@@ -47,7 +47,7 @@ s.text("HOLOGRAM / READY", 360, 460, { size: 32, color: C, align: "center", alph
       text: '#2b2418',
       isLight: true,
     },
-    subtitleDefaults: { style: 'ivory-capsule', animation: 'static' },
+    subtitleDefaults: { style: 'kartu_selotip' },
     animationCardPrompt: `Gaya video: Arsip Kuno (arsip kuno: lembar cetakan tua berbingkai garis ganda, gambar gravir garis dengan arsiran miring, tahun serif yang menghitung, nomor pelat romawi). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Arsip Kuno": Lembar ARSIP / cetakan tua: latar sudah berupa kertas tua dengan bingkai garis ganda dan kotak kecil di sudutnya (isi berada di dalam bingkai, x 100-620, y 150-1100). Semua gambar bergaya GRAVIR: garis tinta coklat tua #2b2418 (krem #e9e0c8 di latar gelap) width 2-4 yang tergambar pelan (\`draw\`), tanpa isian warna, dengan bayangan berupa ARSIRAN garis-garis miring sejajar yang rapat (width 1-1.5) di sisi gelap benda. Aksen: hijau tua #2f5d46 untuk ombak, uap, dan label tempat; karat #9a4a2a untuk buah, bendera, stempel lilin, dan nomor pelat. Ciri halamannya: NOMOR PELAT romawi kecil di kiri atas ("No. I") dan judul kapital kecil di kanan atas (y 170). Isinya digambar gravir dari kalimat scene itu (benda, orang tanpa wajah, peta, mesin, bangunan, uang, dokumen, apa pun yang disebut), boleh satu benda besar, beberapa benda kecil berlabel seperti lembar katalog, atau potongan detail yang diperbesar; variasikan susunannya antar scene. TAHUN atau angka besar serif (\`s.text3d\` size 90-100) yang menghitung naik hanya kalau kalimatnya menyebut tahun atau angka. Gerakan tenang seperti halaman buku sejarah: garis tergambar, arsiran muncul, angka berputar, stempel lilin menghentak. Tanpa warna cerah, tanpa objek 3D, tanpa tokoh kartun. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
@@ -103,7 +103,7 @@ s.group({ x: 500, y: 740, scale: s.lerp(1.45, 1, stamp), alpha: s.at(2.38, 0.12)
       text: '#ffffff',
       isLight: false,
     },
-    subtitleDefaults: { style: 'boxed', animation: 'word-highlight' },
+    subtitleDefaults: { style: 'pop_tebal' },
     animationCardPrompt: `Gaya video: ilustrasi scribble 3D: objek 3D low-poly berwarna cerah dengan garis tinta coretan tangan dan arsiran, teks besar tebal yang muncul kata per kata. Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan. Durasi 30-45 detik.
 Gaya animasi "Scribble 3D": Gunakan \`s.box3d\` atau bentuk poligon isometrik berwarna cerah (#ffbe0b, #3a86ff, #ff006e, #06d6a0) yang dipadukan garis tinta coretan tangan (\`wobble: 2.2, hatch: true\`). Teks utama besar tebal (\`s.text3d\`) muncul kata per kata seirama narasi dengan hentakan skala cepat (\`s.spring(..., "snappy")\`). Gerakan lincah, potongan scene pendek (2.5-4 detik), banyak aksen percikan coretan. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
@@ -161,7 +161,7 @@ words.forEach((w, i) => {
       text: '#264653',
       isLight: true,
     },
-    subtitleDefaults: { style: 'ivory-capsule', animation: 'typewriter' },
+    subtitleDefaults: { style: 'tulisan_tangan' },
     animationCardPrompt: `Gaya video: ilustrasi gambar tangan ala krayon 2D, teks narasi muncul seperti mesin ketik. Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Krayon 2D": Ilustrasi gambar tangan penuh ekspresi ala krayon/pastel minyak 2D di kertas krem hangat (#fbf5e6). Gunakan \`wobble: 2.5..3.5\` dan \`hatch: true\` untuk memberi tekstur goresan krayon warna hangat (#e76f51, #2a9d8f, #e9c46a, #264653). Tambahkan animasi frame-by-frame kecil tiap 3-4 frame (\`Math.floor(s.t * 8)\`), dan teks narasi bergaya mesin ketik. Ritme cepat, energik, banyak elemen bergerak. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
@@ -217,7 +217,7 @@ s.text(full.slice(0, count), 360, 740, {
       text: '#1f2a44',
       isLight: true,
     },
-    subtitleDefaults: { style: 'boxed', animation: 'static' },
+    subtitleDefaults: { style: 'kotak_gelap' },
     animationCardPrompt: `Gaya video: Modern Flat (flat design bersih, warna solid, tanpa coretan). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Modern Flat": KARTU GAYA (hanya cara menggambar; isi gambar SELALU dari narasi). TEKNIK: ilustrasi vektor flat design modern; setiap benda dirakit dari bentuk geometris bersih (persegi membulat, lingkaran, kapsul, segitiga). TEPI: tanpa outline, atau outline tipis rapi satu warna gelap; sudut membulat konsisten (radius 12-28px). Untuk bentuk 2D pakai \`wobble: 0, hatch: false\`; objek 3D pakai \`edges: "none"\`. BENTUK: disederhanakan, proporsi rapi, sedikit detail; benda rumit = beberapa bidang flat bertumpuk. WARNA: biru royal #4f6bff, coral #ff8a5c, kuning lembut #ffd166, hijau mint #5cd6a8, navy #1f2a44, abu muda #e9edf5, putih. Satu warna aksen dominan per scene. TEKSTUR & CAHAYA: warna rata tanpa tekstur; bayangan hanya bidang flat sedikit lebih gelap (bayangan panjang 45 derajat atau sisi gelap), tanpa gradasi mengilap. KEDALAMAN: lewat tumpukan bidang dan perbedaan terang-gelap warna yang sama, bukan blur. TIPOGRAFI: sans-serif tebal bersih, label kecil di kapsul/badge warna (aksen sesekali). GERAK: halus dan presisi: muncul dengan skala ease-out, geser rapi, berputar sedikit; tidak bergoyang. HINDARI: coretan, arsiran, tekstur kertas, garis tangan, glow, neon, warna kusam. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
@@ -274,7 +274,7 @@ s.group({ x: 360, y: 710 + s.lerp(30, 0, k2), alpha: k2 }, () => {
       text: '#2c4a78',
       isLight: true,
     },
-    subtitleDefaults: { style: 'ivory-capsule', animation: 'static' },
+    subtitleDefaults: { style: 'stiker_kertas' },
     animationCardPrompt: `Paper Cutout (paper cutout: kolase scrapbook gunting kertas ala buku cerita anak, tepi putih seperti stiker, tekstur kertas berserat). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Paper Cutout": KARTU GAYA (hanya cara menggambar; isi gambar SELALU dari narasi). TEKNIK: kolase gunting kertas ala buku kerajinan anak; setiap benda adalah lembar kertas datar yang digunting, ditempel berlapis. TEPI: garis tepi putih kertas #fffaf0 selebar 8-12px yang sedikit tidak rata seperti stiker yang digunting tangan; TANPA garis tinta. BENTUK: sederhana dan membulat, sedikit tidak simetris, dirakit dari beberapa lembar (benda rumit = beberapa potongan bertumpuk, bukan detail kecil). WARNA: palet lembut alami: biru muda #8fc7e8, hijau muda #a8d98f, tosca #6cc0a8, cokelat hangat #b07a4f, kuning #ffd35c, oranye #f6a04d, merah muda #f3a6c0, putih kertas #fffaf0; tinta biru tua #2c4a78 hanya untuk tulisan tangan. Satu-dua warna dominan per scene, sisanya aksen kecil. TEKSTUR & CAHAYA: setiap isian bertekstur kertas kerajinan (serat pendek sedikit lebih gelap alpha rendah, bintik halus, kesan felt); cahaya merata tanpa kilap; setiap lembar punya bayangan tipis terangkat di bawah-kanan. KEDALAMAN: lapisan belakang, tengah, depan seperti diorama kertas, tiap lapis dengan bayangannya sendiri. TIPOGRAFI: tulisan tangan biru tua di atas potongan kertas bergaris bertepi sobek, ditempel selotip kuning miring (aksen sesekali, bukan di tiap scene). GERAK: lembar masuk dengan pop kecil atau geser dari samping, lalu bergoyang sangat lembut dan natural seperti kertas dihembus angin sepoi-sepoi (pakai \`s.wave(0.32, 0.025)\` atau \`Math.sin(s.t * 1.3) * 0.025\`). PENTING: \`rotate\` pada \`s.group\` memakai RADIAN (bukan derajat!), jadi JANGAN pernah beri nilai \`rotate\` lebih dari \`0.06\` radian (~3.4°) dan JANGAN pakai \`Math.floor(s.t * 7)\` yang patah-patah terlalu cepat. Kertas yang berisi tulisan/teks wajib bergoyang sangat halus (maks \`±0.03\` radian) agar tulisannya selalu tegak terbaca dan TIDAK PERNAH terbalik. HINDARI: garis tinta, arsiran coretan, gradasi mengilap, glow, neon, objek 3D bervolume, warna gelap pekat. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
@@ -330,7 +330,7 @@ s.group({ x: 390, y: 540, rotate: -0.02 + textBreeze, scale: k2 }, () => {
       text: '#e6f4f1',
       isLight: false,
     },
-    subtitleDefaults: { style: 'clean', animation: 'word-highlight' },
+    subtitleDefaults: { style: 'glitch' },
     animationCardPrompt: `Kinetik HUD (tipografi kinetik: latar hijau-tinta gelap, huruf condensed putih es, aksen kuning amber, kata bertumpuk & angka berputar). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Kinetik HUD": Tipografi kinetik: TULISAN adalah visual utama, ilustrasi minimal. Palet: putih es #e6f4f1 untuk teks utama, aksen kuning amber #ffb000, abu kehijauan #4d6461 untuk yang tidak aktif. Teks besar pakai \`s.text3d\` (font condensed tebal otomatis) RATA KIRI di x 64-70 untuk kalimat yang BERTUMPUK: tiap kata/frasa pendek (1-2 kata per baris, size 68-96, WAJIB muat di dalam x 64..660 tanpa pernah terpotong tepi kanan!), naik dari bawah sambil memudar masuk satu per satu mengikuti narasi, frasa terpenting warna aksen lalu diberi garis bawah aksen tebal yang memanjang. Angka dan jam dibuat seperti ODOMETER: tiap digit berputar vertikal sampai berhenti di nilainya. Elemen khas lain: coretan bar aksen yang mencoret kata satu per satu, huruf/angka singkat raksasa (size 110-145, \`depth: 10-12, side: "#b37a00"\`, tetap muat dalam area aman) yang jatuh masuk huruf demi huruf, stempel kotak bergaris aksen yang menghentak miring, deret blok kecil yang menyala satu per satu sebagai penghitung. Kamera \`s.kamera\` wajib menjaga zoom lembut (0.95-1.03) dan tetap terpusat agar tidak ada satu pun kata atau elemen yang terpotong di tepi layar. Tanpa label pojok, tanpa bingkai layar, dan JANGAN membuat subtitle sendiri. Gerakan tegas & berirama: naik, berputar, coret, hentak; tanpa objek 3D, tanpa arsiran, tanpa gambar kartun. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
@@ -386,7 +386,7 @@ s.text3d(val + "%", 70, 815, { size: 118, color: ICE, condensed: true, depth: 10
       text: '#111111',
       isLight: true,
     },
-    subtitleDefaults: { style: 'boxed', animation: 'static' },
+    subtitleDefaults: { style: 'kotak_putih' },
     animationCardPrompt: `Reel Tegas (poster tegas: krem, hitam, merah sinyal & sedikit kuning, blok warna yang meluncur, angka raksasa, coretan merah). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Reel Tegas": Poster bergerak yang tegas ala Swiss: komposisi bersih, kontras tinggi, rata kiri, setiap scene satu ide besar. Palet ketat: krem #f2efe8, hitam #111111, merah sinyal #e63323, dan sedikit kuning #ffd400 hanya untuk angka. Komposisi dibangun dari BLOK WARNA persegi panjang tanpa sudut membulat yang meluncur masuk dari tepi layar (membelah layar, balok daftar, pita miring), lalu ANGKA atau KATA raksasa (\`s.text3d\`, depth 0, size 100-420, font condensed otomatis) JATUH ke tempatnya dan diam. Elemen khas: angka besar sebagai pusat perhatian, daftar bernomor berupa balok bertumpuk, pita merah miring yang mencoret, lingkaran pie yang terisi searah jarum jam, garis tebal hitam. Gerakan presisi dengan easing tajam (cepat lalu berhenti mati), berirama; tanpa bayangan, tanpa gradasi, tanpa label teknis, tanpa objek 3D, tanpa tokoh. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
@@ -436,7 +436,7 @@ s.text("TANPA KOMPROMI", 88, 808, { size: 30, color: "#f2efe8", weight: 700, ali
       text: '#fff1dc',
       isLight: false,
     },
-    subtitleDefaults: { style: 'clean', animation: 'static' },
+    subtitleDefaults: { style: 'sorot_kata' },
     animationCardPrompt: `Belah Warna (belah warna: layar terbelah batas miring hijau botol & salmon, benda flat yang warnanya terbalik saat menembus batas, cocok untuk tips dan edukasi cepat). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Belah Warna": BELAH WARNA: layar dibelah SATU BATAS MIRING jadi dua warna keras, hijau botol #0d4a3c di atas dan salmon #ff8c69 di bawah, cocok untuk tips, keuangan, produktivitas, dan penjelasan cepat. Salin helper dari contoh gaya ini (\`side\`, \`field\`, \`both\`, \`slab\`, \`disc\`, \`word\`) dan gambar dengan \`ctx\` mentah. ATURAN UTAMA: (1) Setiap scene dimulai \`field(a, b)\`, batas berjalan dari (0, a) ke (720, b); selalu miring, a dan b berbeda minimal 120, jangan pernah datar. (2) BATAS ITU PEMAIN UTAMA: animasikan a dan b di setiap scene, misalnya menyapu, naik seperti air, atau menukik mengikuti benda. (3) SEMUA benda digambar lewat \`both(a, b, (main, shade, back) => { ... })\`, sehingga bagian benda di atas batas berwarna salmon dan bagian di bawahnya hijau: warnanya TERBALIK tepat di garis batas. Inilah ciri gaya ini, jadi tiap scene wajib punya benda yang menembus batas. Pakai warna dari argumen \`main\`, \`shade\`, \`back\`, bukan warna tetap. (4) Benda FLAT geometris tanpa outline dan tanpa gradasi: lingkaran, kotak membulat, dan \`slab\` (kotak dengan sisi tebal di bawahnya), dirakit jadi koin, toples, ponsel, batang grafik, kalender, tas, kunci sesuai topik scene. (5) Kata besar kapital font tebal warna krem #fff1dc (\`word\`), maksimal 1-2 kata, muncul setelah benda mendarat. Gerakan tegas dan cepat: jatuh, memantul, menyapu, \`s.ease.back\`. Pakai \`s.sfx("whoosh")\`, \`s.sfx("thud")\`, dan \`s.sfx("pop")\`. Tanpa warna biru tua atau kuning, tanpa barcode, tanpa objek 3D, tanpa coretan, tanpa wajah, tanpa bayangan lembut. Letakkan benda utama di y 150-820; warna batas boleh sampai bawah. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====
@@ -482,7 +482,7 @@ if (s.t > 1.25) {
       text: '#2B2B2B',
       isLight: true,
     },
-    subtitleDefaults: { style: 'ivory-capsule', animation: 'word-highlight' },
+    subtitleDefaults: { style: 'kartu_selotip' },
     animationCardPrompt: `Peta Gurun Minimalis (Animasi 2D bergaya vektor datar yang dipadukan dengan perspektif isome). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Peta Gurun Minimalis": Animasi 2D bergaya vektor datar yang dipadukan dengan perspektif isometrik peta topografi dan adegan darat 3D low-poly berpermukaan matte rapi. Peta menampilkan garis pantai lengkung halus, garis kontur topografi tipis, penanda lokasi berupa lingkaran konsentris hitam-putih, serta ikon bangunan geometris kubus sederhana dengan bayangan lembut. Adegan darat menampilkan siluet hewan tunggangan, tenda prisma sederhana, pohon akasia berkanopi datar hijau zaitun (#6D8B47), bukit pasir berlapis dengan gunung bersudut tajam di kejauhan, serta sosok manusia berjubah putih polos. Gunakan garis putus-putus emas (#A6893A) dengan pendaran halus di bawahnya untuk jalur perjalanan, serta garis penunjuk tipis miring berujung lingkaran kecil yang menghubungkan objek dengan label kapsul. Palet warna didominasi krem pasir (#EDE2CA) dan cokelat muda (#C8B698), dipadukan dengan aksen biru laut pastel (#BBD2DC), emas hangat (#A6893A), merah bata (#A94442), serta hitam keabuan (#2B2B2B) untuk teks utama. Pencahayaan dibuat lembut melalui bayangan elips tipis di bawah setiap objek darat, vignette hangat di tepi layar, serta efek pendar bercahaya emas halus pada simbol penting tanpa menggunakan tekstur bitmap kasar. Latar tampilan peta menggunakan gradasi krem bersih dengan kabut horison di bagian atas untuk ruang teks, sedangkan adegan darat menggunakan gradasi langit biru-abu (#6E8898) atau senja hangat ke warna pasir. Tipografi judul dan label menggunakan huruf sans-serif bersih di dalam kotak kapsul putih gading (#FAF6EC) bersudut membulat dan berbingkai tipis emas-cokelat (#C8B698). Subtitle ditampilkan di area aman bagian bawah menggunakan kapsul putih gading (#FAF6EC) berbingkai tipis pada latar terang atau kapsul gelap transparan pada latar menengah, dengan teks sans-serif yang muncul kata demi kata mengikuti suara dan sorotan emas (#A6893A) pada kata kunci. Kamera bergerak tenang dengan efek pan, tilt, dan zoom perlahan mengikuti pertumbuhan garis jalur atau menggeser parallax lapisan bukit pasir. Transisi antar scene menggunakan sapuan tirai kabut krem (#EDE2CA) yang memudar halus selama 0,35 detik di awal dan akhir scene agar perpindahan antara peta dan lanskap darat terasa menyatu. Hindari: penggunaan foto, tekstur kasar berlebihan, warna neon mencolok, efek 3D mengilap, serta menggambar wajah. Semua orang atau tokoh wajib digambar faceless (kepala polos tanpa mata, hidung, mulut, atau ekspresi wajah).`,
     sampleCode: `// ===== SCENE 1 =====
@@ -537,7 +537,7 @@ s.group({ x: 420, y: 315, alpha: lbl }, () => {
       text: '#24201a',
       isLight: true,
     },
-    subtitleDefaults: { style: 'clean', animation: 'static' },
+    subtitleDefaults: { style: 'garis_bawah' },
     animationCardPrompt: `Garis Tinta (garis tinta: kertas krem & hijau hutan, ikon garis tinta tipis dengan satu aksen hijau, teks kapital bergaris bawah). Nuansa: energik dan membakar semangat, ritme cepat, potongan scene pendek, banyak gerakan.
 Gaya animasi "Garis Tinta": Minimalis dengan GARIS TINTA: ilustrasi digambar dengan garis tipis rapi warna tinta (#24201a di latar terang, #eef2ea di latar gelap) \`width: 3-5, wobble: 0, hatch: false\`, dan SATU aksen HIJAU #12a37f untuk bagian yang jadi jawaban/harapan (jalur yang berhasil, titik yang naik, cahaya di balik pintu), dengan hijau pucat #d5f2e8 sebagai isian lembut. Ceritakan pesan sebagai METAFORA GARIS yang kamu rancang dari kalimat scene itu (contoh cara berpikirnya: jalan terputus lalu tersambung, dua rute yang berbeda nasib, pintu yang terbuka; cari metafora sendiri yang paling pas, jangan mengulang contoh ini). Satu metafora besar per scene, letaknya bebas di area ilustrasi, garisnya MUNCUL DENGAN DIGAMBAR (\`draw: s.at(...)\`), lalu aksen hijau datang belakangan sebagai jawabannya. Latar krem dipakai untuk kebanyakan scene; latar gelap (night, hijau hutan) untuk momen penegasan. Gerakan pelan dan tenang: garis tergambar, titik melompat lembut, bentuk berayun. Tanpa label pojok, tanpa tokoh manusia kecuali benar-benar perlu, tanpa objek 3D dan tanpa arsiran. (Apa pun gayanya, setiap orang/tokoh WAJIB faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah.)`,
     sampleCode: `// ===== SCENE 1 =====

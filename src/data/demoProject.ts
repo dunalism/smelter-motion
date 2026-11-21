@@ -756,7 +756,7 @@ export const DEMO_PROJECT: ProjectState = {
     enabled: true,
     fontSize: 28,
     position: 'bottom',
-    style: 'boxed',
+    style: 'kotak_gelap',
   },
   scenes: [
     {

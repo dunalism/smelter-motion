@@ -14,6 +14,7 @@ import {
 } from '../engine/motionMath';
 import { compileSceneCode, extractSfxCalls, renderSceneFrame } from '../engine/canvasRenderer';
 import { triggerSfxAt } from '../engine/sfxSynthesizer';
+import { preloadProjectAudioTimings } from '../engine/wordTiming';
 import { ApiRequestError, postJson } from '../utils/api';
 import { SubtitleStudioModal } from './SubtitleStudioModal';
 import {
@@ -196,6 +197,11 @@ export function AnimasiStep({
     return offsets;
   }, [project.scenes]);
 
+  // Preload audio word-timing alignments for all scenes (non-WAV MP3/WebM/URL)
+  useEffect(() => {
+    preloadProjectAudioTimings(project.scenes).catch(() => {});
+  }, [project.scenes]);
+
   // Draw frame whenever currentTime, scenes, palette, or subtitles change
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -217,6 +223,8 @@ export function AnimasiStep({
       narration: resolved.scene?.narration,
       emphasis: resolved.scene?.emphasis,
       subtitles: project.subtitles,
+      audioDataUrl: resolved.scene?.audio.dataUrl,
+      audioDurationSec: resolved.scene?.audio.durationSec,
     });
     setRuntimeError(err);
   }, [currentTime, project.scenes, project.subtitles, palette, dims.width, dims.height, compiledAll]);

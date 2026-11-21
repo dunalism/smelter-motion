@@ -383,6 +383,8 @@ export interface RenderFrameOptions {
   narration?: string;
   emphasis?: string;
   subtitles?: SubtitleSettings;
+  audioDataUrl?: string;
+  audioDurationSec?: number;
 }
 
 export function renderSceneFrame({
@@ -396,6 +398,8 @@ export function renderSceneFrame({
   narration,
   emphasis,
   subtitles,
+  audioDataUrl,
+  audioDurationSec,
 }: RenderFrameOptions): string | null {
   ctx.save();
   ctx.globalAlpha = 1;
@@ -1124,6 +1128,8 @@ export function renderSceneFrame({
       sceneDuration,
       emphasis,
       palette,
+      audioDataUrl,
+      audioDurationSec,
     });
   }
 

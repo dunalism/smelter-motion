@@ -88,7 +88,6 @@ test('All 11 video styles compile and render across timestamps with zero runtime
           fontSize: 28,
           position: 'bottom',
           style: style.subtitleDefaults.style,
-          animation: style.subtitleDefaults.animation,
         },
       });
       assert.equal(runtimeErr, null, `Runtime error for style ${style.id} at t=${t}: ${runtimeErr}`);
@@ -118,28 +117,25 @@ test('renderSceneFrame renders subtitle with emphasis underline without runtime 
   const compiled = compileSceneCode(SCENE_4_CODE);
   assert.ok(compiled.fn);
 
-  for (const style of ['clean', 'boxed', 'ivory-capsule'] as const) {
-    for (const animation of ['static', 'typewriter', 'word-highlight'] as const) {
-      const err = renderSceneFrame({
-        ctx: mockCtx,
-        width: 720,
-        height: 1280,
-        localTime: 1.5,
-        sceneDuration: 4.16,
-        compiledFn: compiled.fn,
-        palette: VIDEO_STYLES[0].palette,
-        narration: 'Awalnya sinyal tampak kacau dan penuh gangguan.',
-        emphasis: 'kacau',
-        subtitles: {
-          enabled: true,
-          fontSize: 28,
-          position: 'bottom',
-          style,
-          animation,
-        },
-      });
-      assert.equal(err, null);
-    }
+  for (const style of ['tulisan_tangan', 'kotak_gelap', 'kartu_selotip', 'garis_bawah'] as const) {
+    const err = renderSceneFrame({
+      ctx: mockCtx,
+      width: 720,
+      height: 1280,
+      localTime: 1.5,
+      sceneDuration: 4.16,
+      compiledFn: compiled.fn,
+      palette: VIDEO_STYLES[0].palette,
+      narration: 'Awalnya sinyal tampak kacau dan penuh gangguan.',
+      emphasis: 'kacau',
+      subtitles: {
+        enabled: true,
+        fontSize: 28,
+        position: 'bottom',
+        style,
+      },
+    });
+    assert.equal(err, null);
   }
 });
 
@@ -234,11 +230,12 @@ test('renderSceneFrame auto-fits oversized text, flips upside-down text, and sup
     compiledFn: compiledDup.fn,
     palette: VIDEO_STYLES[0].palette,
     narration: 'Ini adalah kalimat narasi yang muncul di bawah.',
-    subtitles: { enabled: true, fontSize: 28, position: 'bottom', style: 'clean', animation: 'static' },
+    subtitles: { enabled: true, fontSize: 28, position: 'bottom', style: 'kotak_gelap' },
   });
   assert.ok(drawnTexts.some((d) => d.text === 'JUDUL ATAS'));
-  const subtitleMatches = drawnTexts.filter((d) => d.text.includes('kalimat narasi'));
-  assert.equal(subtitleMatches.length, 1, 'Should render only the official subtitle overlay, not double');
+  assert.ok(drawnTexts.some((d) => d.text === 'narasi'), 'Official word-by-word subtitle should render');
+  const duplicateLineMatches = drawnTexts.filter((d) => d.text.includes('kalimat narasi'));
+  assert.equal(duplicateLineMatches.length, 0, 'Should suppress duplicate bottom s.text subtitle');
 
   // 3. Upside-down rotated text should be flipped right-side up
   drawnTexts.length = 0;

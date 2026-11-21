@@ -75,7 +75,6 @@ export function IdeStep({
       subtitles: {
         ...prev.subtitles,
         style: preset.subtitleDefaults.style,
-        animation: preset.subtitleDefaults.animation,
       },
     }));
   };
@@ -89,7 +88,6 @@ export function IdeStep({
       subtitles: {
         ...prev.subtitles,
         style: preset.subtitleDefaults.style,
-        animation: preset.subtitleDefaults.animation,
       },
       scenes: prev.scenes.map((sc, idx) =>
         idx === 0

@@ -4,7 +4,6 @@ import { formatTimecode, getTotalDuration, PALETTE_PRESETS } from '../engine/mot
 import {
   extractAutoEmphasisKeywords,
   resolveSubtitleConfig,
-  SUBTITLE_ANIMATIONS,
 } from '../engine/subtitleConfig';
 import { SeoPanel } from './SeoPanel';
 import { SubtitleStudioModal } from './SubtitleStudioModal';
@@ -29,8 +28,6 @@ export function NarasiStep({
   const totalSec = getTotalDuration(project.scenes);
   const palette = PALETTE_PRESETS[project.paletteId] || PALETTE_PRESETS['cyber-hologram'];
   const resolvedSub = resolveSubtitleConfig(project.subtitles, palette);
-  const animLabel =
-    SUBTITLE_ANIMATIONS.find((a) => a.id === resolvedSub.entrance)?.name || resolvedSub.entrance;
 
   const updateScene = (id: string, patch: Partial<SceneItem>) => {
     onUpdateProject((prev) => ({
@@ -145,8 +142,6 @@ export function NarasiStep({
             </label>
             <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-[#0B0E14] border border-[#242E42] rounded-lg px-2.5 py-1">
               <span className="text-sky-300 font-medium">{resolvedSub.styleDef.name}</span>
-              <span aria-hidden="true">·</span>
-              <span className="text-amber-300/90">{animLabel}</span>
               <span aria-hidden="true">·</span>
               <span className="font-mono">{resolvedSub.fontSize}px</span>
             </div>

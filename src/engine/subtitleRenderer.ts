@@ -1,14 +1,14 @@
 import type {
   PalettePreset,
-  SubtitleEasing,
   SubtitleSettings,
 } from '../types/studio';
-import { clamp, ease, lerp, rand, spring } from './motionMath';
+import { clamp, ease, lerp, rand } from './motionMath';
 import {
   extractAutoEmphasisKeywords,
   resolveSubtitleConfig,
   type ResolvedSubtitleConfig,
 } from './subtitleConfig';
+import { getWordTimings, type WordTiming } from './wordTiming';
 
 export interface SubtitleRenderOptions {
   ctx: CanvasRenderingContext2D;
@@ -20,12 +20,10 @@ export interface SubtitleRenderOptions {
   sceneDuration: number;
   emphasis?: string;
   palette?: PalettePreset;
+  audioDataUrl?: string;
+  audioDurationSec?: number;
 }
 
-/**
- * Finds character ranges [start, end] for emphasis words/phrases (comma-separated)
- * within a line of text, case-insensitively with word-boundary awareness.
- */
 export function findEmphasisRanges(line: string, emphasis?: string): Array<[number, number]> {
   if (!emphasis || !emphasis.trim() || !line) return [];
   const needles = emphasis
@@ -81,25 +79,6 @@ function hexToRgba(hex: string, alpha: number): string {
   return hex;
 }
 
-function applySubtitleEasing(u: number, easing: SubtitleEasing): number {
-  const t = clamp(u, 0, 1);
-  switch (easing) {
-    case 'linear':
-      return t;
-    case 'easeInOut':
-      return ease.inOut(t);
-    case 'back':
-      return ease.outBack(t);
-    case 'spring':
-      return spring(t * 0.65, 0, 'snappy');
-    case 'bounce':
-      return spring(t * 0.65, 0, 'bouncy');
-    case 'easeOut':
-    default:
-      return ease.out(t);
-  }
-}
-
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -116,183 +95,239 @@ function drawRoundedRect(
   }
 }
 
-interface WordToken {
-  text: string;
-  isEmphasis: boolean;
+interface PositionedWord {
+  word: string;
   globalIndex: number;
+  isEmphasis: boolean;
+  timing: WordTiming;
+  width: number;
+  x: number; // left X relative to anchorX
+  y: number; // center Y of line
+  lineIndex: number;
 }
 
-function buildLineTokens(
-  lines: string[],
-  effectiveEmphasis: string
-): WordToken[][] {
-  let globalIdx = 0;
-  return lines.map((line) => {
-    const ranges = findEmphasisRanges(line, effectiveEmphasis);
-    const tokens: WordToken[] = [];
-    const regex = /\S+/g;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(line)) !== null) {
-      const wStart = match.index;
-      const wEnd = wStart + match[0].length;
-      const isEmphasis = ranges.some(([rStart, rEnd]) => wStart < rEnd && wEnd > rStart);
-      tokens.push({ text: match[0], isEmphasis, globalIndex: globalIdx++ });
-    }
-    return tokens;
-  });
+interface WrappedLine {
+  lineIndex: number;
+  y: number;
+  totalWidth: number;
+  words: PositionedWord[];
 }
 
-function wrapTextToLines(
+function wrapWordsToLines(
   ctx: CanvasRenderingContext2D,
-  text: string,
+  timings: WordTiming[],
+  transformedWords: string[],
+  emphasisStr: string,
   maxWidth: number,
-  layoutMode: 'standard' | 'split-editorial' | 'stacked-words'
-): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return [];
+  lineHeight: number,
+  baseY: number
+): { lines: WrappedLine[]; widest: number } {
+  const fullJoined = transformedWords.join(' ');
+  const empRanges = findEmphasisRanges(fullJoined, emphasisStr);
 
-  if (layoutMode === 'stacked-words') {
-    // Group 1-2 words per row for punchy vertical poster composition
-    const rows: string[] = [];
-    for (let i = 0; i < words.length; i += 2) {
-      const pair = words.slice(i, i + 2).join(' ');
-      if (ctx.measureText(pair).width > maxWidth && words[i + 1]) {
-        rows.push(words[i], words[i + 1]);
-      } else {
-        rows.push(pair);
-      }
-    }
-    return rows.slice(0, 4);
+  // Map each word index to its char range in fullJoined
+  const isWordEmphasis: boolean[] = [];
+  let charPos = 0;
+  for (let i = 0; i < transformedWords.length; i++) {
+    const w = transformedWords[i];
+    const start = charPos;
+    const end = charPos + w.length;
+    const hit = empRanges.some(([rs, re]) => start < re && end > rs);
+    isWordEmphasis.push(hit);
+    charPos = end + 1;
   }
 
-  if (layoutMode === 'split-editorial' && words.length >= 4) {
-    const mid = Math.ceil(words.length / 2);
-    const l1 = words.slice(0, mid).join(' ');
-    const l2 = words.slice(mid).join(' ');
-    if (ctx.measureText(l1).width <= maxWidth && ctx.measureText(l2).width <= maxWidth) {
-      return [l1, l2];
-    }
-  }
+  const spaceW = ctx.measureText(' ').width;
+  const rawLines: Array<{ indices: number[]; widths: number[]; totalW: number }> = [];
+  let curIndices: number[] = [];
+  let curWidths: number[] = [];
+  let curW = 0;
 
-  const lines: string[] = [];
-  let current = '';
-  for (const w of words) {
-    const candidate = current ? `${current} ${w}` : w;
-    if (ctx.measureText(candidate).width > maxWidth && current) {
-      lines.push(current);
-      current = w;
+  for (let i = 0; i < transformedWords.length; i++) {
+    const wW = ctx.measureText(transformedWords[i]).width;
+    const nextW = curIndices.length === 0 ? wW : curW + spaceW + wW;
+    if (curIndices.length > 0 && nextW > maxWidth) {
+      rawLines.push({ indices: curIndices, widths: curWidths, totalW: curW });
+      curIndices = [i];
+      curWidths = [wW];
+      curW = wW;
     } else {
-      current = candidate;
+      curIndices.push(i);
+      curWidths.push(wW);
+      curW = nextW;
     }
   }
-  if (current) lines.push(current);
-  return lines;
+  if (curIndices.length > 0) {
+    rawLines.push({ indices: curIndices, widths: curWidths, totalW: curW });
+  }
+
+  const totalH = rawLines.length * lineHeight;
+  const lines: WrappedLine[] = [];
+  let widest = 0;
+
+  rawLines.forEach((rl, lineIdx) => {
+    widest = Math.max(widest, rl.totalW);
+    const lineY = baseY - totalH / 2 + lineIdx * lineHeight + lineHeight / 2;
+    let cursorX = -rl.totalW / 2;
+    const words: PositionedWord[] = rl.indices.map((gi, wi) => {
+      const wW = rl.widths[wi];
+      const pw: PositionedWord = {
+        word: transformedWords[gi],
+        globalIndex: gi,
+        isEmphasis: isWordEmphasis[gi],
+        timing: timings[gi],
+        width: wW,
+        x: cursorX,
+        y: lineY,
+        lineIndex: lineIdx,
+      };
+      cursorX += wW + spaceW;
+      return pw;
+    });
+    lines.push({ lineIndex: lineIdx, y: lineY, totalWidth: rl.totalW, words });
+  });
+
+  return { lines, widest };
 }
 
-function drawContainerBackground(
+function getWordProgress(t: number, timing: WordTiming): {
+  isRevealed: boolean;
+  isActive: boolean;
+  hasSpoken: boolean;
+  progress: number;
+  elapsed: number;
+  wordDur: number;
+} {
+  const wordDur = Math.max(0.06, timing.endSec - timing.startSec);
+  const elapsed = t - timing.startSec;
+  const isRevealed = elapsed >= 0;
+  const hasSpoken = t >= timing.endSec;
+  const isActive = isRevealed && !hasSpoken;
+  const progress = clamp(elapsed / wordDur, 0, 1);
+  return { isRevealed, isActive, hasSpoken, progress, elapsed, wordDur };
+}
+
+function findActiveWordIndex(timings: WordTiming[], t: number): number {
+  if (timings.length === 0) return 0;
+  for (let i = 0; i < timings.length; i++) {
+    if (t >= timings[i].startSec && t < timings[i].endSec) {
+      return i;
+    }
+    if (i < timings.length - 1 && t >= timings[i].endSec && t < timings[i + 1].startSec) {
+      // During a pause between words, stay on the word just spoken
+      return i;
+    }
+  }
+  if (t < timings[0].startSec) return -1;
+  return timings.length - 1;
+}
+
+function drawHandwrittenScribble(
   ctx: CanvasRenderingContext2D,
-  cfg: ResolvedSubtitleConfig,
-  boxX: number,
-  boxY: number,
-  boxW: number,
-  boxH: number
+  x: number,
+  y: number,
+  w: number,
+  color: string,
+  progress: number
 ): void {
-  const decor = cfg.styleDef.decorMode;
-  if (cfg.bgOpacity <= 0 && decor !== 'sketch-box' && decor !== 'stamp' && decor !== 'cutout') {
-    return;
-  }
-
+  if (progress <= 0.02) return;
+  const drawW = w * clamp(progress, 0, 1);
   ctx.save();
-  if (decor === 'cutout') {
-    ctx.fillStyle = '#0F172A';
-    drawRoundedRect(ctx, boxX + 5, boxY + 6, boxW, boxH, cfg.borderRadius);
-    ctx.fill();
-    ctx.fillStyle = hexToRgba(cfg.bgColor, cfg.bgOpacity);
-    drawRoundedRect(ctx, boxX, boxY, boxW, boxH, cfg.borderRadius);
-    ctx.fill();
-    ctx.strokeStyle = cfg.styleDef.borderColor || '#0F172A';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-    ctx.restore();
-    return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  const steps = Math.max(4, Math.floor(drawW / 7));
+  for (let i = 0; i <= steps; i++) {
+    const px = x + (drawW * i) / steps;
+    const py = y + Math.sin(i * 1.45) * 1.9 + (i % 2 === 0 ? 0.6 : -0.5);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
   }
-
-  if (decor === 'sketch-box') {
-    ctx.fillStyle = hexToRgba(cfg.bgColor, cfg.bgOpacity);
-    drawRoundedRect(ctx, boxX, boxY, boxW, boxH, cfg.borderRadius);
-    ctx.fill();
-    ctx.strokeStyle = cfg.styleDef.borderColor || '#334155';
-    ctx.lineWidth = 2.2;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.rect(boxX - 2, boxY + 2, boxW + 3, boxH - 3);
-    ctx.lineWidth = 1.1;
-    ctx.stroke();
-    ctx.restore();
-    return;
-  }
-
-  if (decor === 'stamp') {
-    ctx.fillStyle = hexToRgba(cfg.bgColor, cfg.bgOpacity);
-    drawRoundedRect(ctx, boxX, boxY, boxW, boxH, cfg.borderRadius);
-    ctx.fill();
-    ctx.strokeStyle = cfg.styleDef.borderColor || '#FCA5A5';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.strokeRect(boxX + 4, boxY + 4, boxW - 8, boxH - 8);
-    ctx.restore();
-    return;
-  }
-
-  if (decor === 'floating-pill') {
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-    ctx.shadowBlur = 18;
-    ctx.shadowOffsetY = 6;
-  }
-
-  ctx.fillStyle = hexToRgba(cfg.bgColor, cfg.bgOpacity);
-  drawRoundedRect(ctx, boxX, boxY, boxW, boxH, cfg.borderRadius);
-  ctx.fill();
-
-  if (decor === 'capsule' || decor === 'floating-pill' || decor === 'glitch') {
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = cfg.styleDef.borderColor || '#C8B698';
-    ctx.lineWidth = decor === 'capsule' ? 2 : 1.5;
-    ctx.stroke();
-  }
+  ctx.stroke();
   ctx.restore();
 }
 
-function measureWordWithSpacing(
+function drawInkCircle(
   ctx: CanvasRenderingContext2D,
-  word: string,
-  letterSpacing: number
-): number {
-  const base = ctx.measureText(word).width;
-  if (!letterSpacing || word.length <= 1) return base;
-  return base + letterSpacing * (word.length - 1);
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  color: string,
+  progress: number
+): void {
+  if (progress <= 0.02) return;
+  const endAngle = -Math.PI * 0.65 + Math.PI * 2.15 * clamp(progress, 0, 1);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  const steps = 28;
+  for (let i = 0; i <= steps; i++) {
+    const a = lerp(-Math.PI * 0.65, endAngle, i / steps);
+    const wobble = 1 + Math.sin(a * 3) * 0.04;
+    const px = cx + Math.cos(a) * rx * wobble;
+    const py = cy + Math.sin(a) * ry * wobble;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
-function drawTextWithSpacing(
+function drawYellowHighlighter(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string,
+  progress: number
+): void {
+  if (progress <= 0.02) return;
+  const drawW = w * clamp(progress, 0, 1);
+  ctx.save();
+  ctx.fillStyle = hexToRgba(color, 0.85);
+  ctx.translate(x, y);
+  ctx.rotate(-0.015);
+  drawRoundedRect(ctx, -3, -h * 0.45, drawW + 6, h * 0.9, 4);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSubtitleText(
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
   y: number,
-  letterSpacing: number,
-  mode: 'fill' | 'stroke'
+  fillColor: string,
+  options?: {
+    outlineColor?: string;
+    outlineWidth?: number;
+    shadowBlur?: number;
+    shadowColor?: string;
+    align?: CanvasTextAlign;
+  }
 ): void {
-  if (!letterSpacing || Math.abs(letterSpacing) < 0.05) {
-    if (mode === 'stroke') ctx.strokeText(text, x, y);
-    else ctx.fillText(text, x, y);
-    return;
+  ctx.save();
+  ctx.textAlign = options?.align ?? 'left';
+  if (options?.outlineWidth && options.outlineWidth > 0) {
+    ctx.lineWidth = options.outlineWidth;
+    ctx.strokeStyle = options.outlineColor || 'rgba(0,0,0,0.85)';
+    ctx.lineJoin = 'round';
+    ctx.strokeText(text, x, y);
   }
-  let cursor = x;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (mode === 'stroke') ctx.strokeText(ch, cursor, y);
-    else ctx.fillText(ch, cursor, y);
-    cursor += ctx.measureText(ch).width + letterSpacing;
+  if (options?.shadowBlur && options.shadowBlur > 0) {
+    ctx.shadowColor = options.shadowColor || 'rgba(0,0,0,0.75)';
+    ctx.shadowBlur = options.shadowBlur;
+    ctx.shadowOffsetY = 2;
   }
+  ctx.fillStyle = fillColor;
+  ctx.fillText(text, x, y);
+  ctx.restore();
 }
 
 export function renderSubtitleOverlay({
@@ -305,484 +340,512 @@ export function renderSubtitleOverlay({
   sceneDuration,
   emphasis,
   palette,
+  audioDataUrl,
+  audioDurationSec,
 }: SubtitleRenderOptions): void {
   const rawTrimmed = text.trim();
   if (!rawTrimmed) return;
 
-  const cfg = resolveSubtitleConfig(subtitles, palette);
+  const cfg: ResolvedSubtitleConfig = resolveSubtitleConfig(subtitles, palette);
+  const styleId = cfg.styleDef.id;
+
   const transformedText =
-    cfg.textTransform === 'uppercase'
+    cfg.styleDef.textTransform === 'uppercase'
       ? rawTrimmed.toUpperCase()
-      : cfg.textTransform === 'lowercase'
-        ? rawTrimmed.toLowerCase()
-        : rawTrimmed;
+      : rawTrimmed;
+
+  const rawWords = transformedText.split(/\s+/).filter(Boolean);
+  if (rawWords.length === 0) return;
+
+  const timings = getWordTimings(
+    rawTrimmed,
+    sceneDuration,
+    audioDataUrl,
+    audioDurationSec
+  );
+  if (timings.length === 0) return;
 
   const effectiveEmphasis =
     emphasis && emphasis.trim()
       ? emphasis
-      : cfg.autoHighlight
-        ? extractAutoEmphasisKeywords(rawTrimmed, 2).join(', ')
-        : '';
+      : extractAutoEmphasisKeywords(rawTrimmed, 2).join(', ');
 
-  const delay = Math.max(0, cfg.delay);
-  const animTime = localTime - delay;
-  if (animTime < 0) return;
+  const effectiveFontSize =
+    styleId === 'tulisan_tangan'
+      ? Math.round(cfg.fontSize * 0.88)
+      : styleId === 'pop_tebal'
+        ? Math.round(cfg.fontSize * 1.18)
+        : styleId === 'satu_kata'
+          ? Math.round(cfg.fontSize * 1.65)
+          : cfg.fontSize;
 
-  const dur = Math.max(0.12, cfg.duration);
-  const rawEnter = cfg.entrance === 'static' ? 1 : clamp(animTime / dur, 0, 1);
-  const enterProgress =
-    cfg.entrance === 'static' ? 1 : applySubtitleEasing(rawEnter, cfg.easing);
+  const fontStylePrefix = cfg.styleDef.fontStyle === 'italic' ? 'italic ' : '';
+  const baseFont = `${fontStylePrefix}${cfg.styleDef.fontWeight} ${effectiveFontSize}px ${cfg.styleDef.fontFamily}`;
+  const lineHeight = effectiveFontSize * 1.32;
+  const maxWidth = clamp(width * 0.84, 180, width - 56);
+  const anchorX = width / 2;
 
-  const exitDur = cfg.exit === 'none' ? 0 : Math.min(0.38, sceneDuration * 0.18);
-  const exitStart = Math.max(delay + dur * 0.5, sceneDuration - exitDur);
-  const exitProgress =
-    exitDur > 0 && localTime > exitStart
-      ? clamp((localTime - exitStart) / exitDur, 0, 1)
-      : 0;
-  const exitEase = ease.in(exitProgress);
+  const activeIdx = findActiveWordIndex(timings, localTime);
 
-  const speechProgress = clamp(
-    animTime / Math.max(0.8, (sceneDuration - delay) * 0.82),
-    0,
-    1
-  );
+  // Special layout: "satu_kata" — single big word in center, swaps with voice
+  if (styleId === 'satu_kata') {
+    const idx = activeIdx < 0 ? 0 : activeIdx;
+    const timing = timings[idx];
+    const wp = getWordProgress(localTime, timing);
+    if (localTime < timings[0].startSec && timings[0].startSec > 0.08) return;
 
-  const displaySource =
-    cfg.entrance === 'typewriter'
-      ? transformedText.slice(0, Math.max(1, Math.ceil(transformedText.length * speechProgress)))
-      : cfg.entrance === 'letter-reveal'
-        ? transformedText.slice(0, Math.max(1, Math.ceil(transformedText.length * clamp(rawEnter, 0, 1))))
-        : transformedText;
+    const wordText = rawWords[idx] || '';
+    const empRanges = findEmphasisRanges(transformedText, effectiveEmphasis);
+    const fullJoined = rawWords.join(' ');
+    let startChar = 0;
+    for (let i = 0; i < idx; i++) startChar += rawWords[i].length + 1;
+    const endChar = startChar + wordText.length;
+    const isEmp = empRanges.some(([rs, re]) => startChar < re && endChar > rs);
 
-  const maxWidth = clamp(
-    width * (cfg.maxWidthPercent / 100),
-    180,
-    width - cfg.safeAreaMargin * 2
-  );
+    const popT = clamp(wp.elapsed / Math.min(0.22, wp.wordDur * 0.65), 0, 1);
+    const scale = lerp(0.84, 1, ease.outBack(popT));
+    const centerY = height * (cfg.verticalPercent / 100);
+
+    ctx.save();
+    ctx.translate(anchorX, centerY);
+    ctx.scale(scale, scale);
+    ctx.font = baseFont;
+    ctx.textBaseline = 'middle';
+    drawSubtitleText(ctx, wordText, 0, 0, isEmp ? cfg.accentColor : cfg.textColor, {
+      align: 'center',
+      outlineWidth: 6,
+      outlineColor: 'rgba(6, 9, 19, 0.92)',
+      shadowBlur: 16,
+      shadowColor: 'rgba(0, 0, 0, 0.7)',
+    });
+    ctx.restore();
+    return;
+  }
 
   ctx.save();
-  ctx.font = `${cfg.fontWeight} ${cfg.fontSize}px ${cfg.fontFamily}`;
+  ctx.font = baseFont;
   ctx.textBaseline = 'middle';
 
-  const lines = wrapTextToLines(ctx, displaySource, maxWidth, cfg.styleDef.layoutMode);
+  const baseY = clamp(
+    height * (cfg.verticalPercent / 100),
+    effectiveFontSize * 1.5 + 24,
+    height - effectiveFontSize * 1.5 - 24
+  );
+
+  const { lines, widest } = wrapWordsToLines(
+    ctx,
+    timings,
+    rawWords,
+    effectiveEmphasis,
+    maxWidth,
+    lineHeight,
+    baseY
+  );
   if (lines.length === 0) {
     ctx.restore();
     return;
   }
 
-  const lineTokens = buildLineTokens(lines, effectiveEmphasis);
-  const totalWords = Math.max(
-    1,
-    transformedText.split(/\s+/).filter(Boolean).length
-  );
-  const activeWordIdx = Math.min(
-    totalWords - 1,
-    Math.floor(speechProgress * totalWords)
-  );
+  ctx.translate(anchorX, 0);
 
-  const lineHeight = cfg.fontSize * cfg.lineHeight;
-  const totalHeight = lines.length * lineHeight;
-  const baseY = clamp(
-    height * (cfg.verticalPercent / 100),
-    cfg.safeAreaMargin + totalHeight / 2,
-    height - cfg.safeAreaMargin - totalHeight / 2
-  );
-  const anchorX =
-    cfg.horizontalAlign === 'left'
-      ? cfg.safeAreaMargin + maxWidth / 2
-      : cfg.horizontalAlign === 'right'
-        ? width - cfg.safeAreaMargin - maxWidth / 2
-        : width / 2;
+  const totalH = lines.length * lineHeight;
+  const padX = 22;
+  const padY = 12;
+  const boxX = -widest / 2 - padX;
+  const boxY = baseY - totalH / 2 - padY;
+  const boxW = widest + padX * 2;
+  const boxH = totalH + padY * 2;
 
-  const intensity = cfg.intensity;
-  let globalAlpha = 1;
-  let offsetX = 0;
-  let offsetY = 0;
-  let scaleX = 1;
-  let scaleY = 1;
-  let rotateRad = cfg.styleDef.decorMode === 'stamp' ? -0.022 : 0;
-  let blurPx = 0;
-
-  switch (cfg.entrance) {
-    case 'fade':
-      globalAlpha *= rawEnter;
-      break;
-    case 'slide-up':
-      globalAlpha *= clamp(rawEnter * 1.4, 0, 1);
-      offsetY += lerp(28 * intensity, 0, enterProgress);
-      break;
-    case 'slide-down':
-      globalAlpha *= clamp(rawEnter * 1.4, 0, 1);
-      offsetY += lerp(-28 * intensity, 0, enterProgress);
-      break;
-    case 'slide-left':
-      globalAlpha *= clamp(rawEnter * 1.4, 0, 1);
-      offsetX += lerp(48 * intensity, 0, enterProgress);
-      break;
-    case 'slide-right':
-      globalAlpha *= clamp(rawEnter * 1.4, 0, 1);
-      offsetX += lerp(-48 * intensity, 0, enterProgress);
-      break;
-    case 'scale':
-    case 'pop':
-    case 'bounce':
-    case 'elastic':
-    case 'spring': {
-      globalAlpha *= clamp(rawEnter * 1.6, 0, 1);
-      const startScale = cfg.entrance === 'elastic' ? 0.68 : 0.82;
-      const s = lerp(startScale, 1, enterProgress);
-      scaleX *= s;
-      scaleY *= s;
-      break;
-    }
-    case 'rotate':
-      globalAlpha *= clamp(rawEnter * 1.5, 0, 1);
-      rotateRad += lerp(-0.08 * intensity, 0, enterProgress);
-      scaleX *= lerp(0.9, 1, enterProgress);
-      scaleY *= lerp(0.9, 1, enterProgress);
-      break;
-    case 'flip':
-      globalAlpha *= clamp(rawEnter * 1.5, 0, 1);
-      scaleY *= Math.max(0.08, enterProgress);
-      break;
-    case 'blur':
-      globalAlpha *= rawEnter;
-      blurPx = lerp(10 * intensity, 0, rawEnter);
-      break;
-    case 'glitch': {
-      const glitchPhase = rawEnter < 1 ? 1 - rawEnter : 0;
-      const f = Math.floor(localTime * 28);
-      offsetX += (rand(f + 13) - 0.5) * 14 * glitchPhase * intensity;
-      offsetY += (rand(f + 37) - 0.5) * 6 * glitchPhase * intensity;
-      break;
-    }
-    default:
-      break;
-  }
-
-  if (exitProgress > 0) {
-    globalAlpha *= 1 - exitEase;
-    if (cfg.exit === 'slide-down') offsetY += lerp(0, 22, exitEase);
-    else if (cfg.exit === 'slide-up') offsetY += lerp(0, -22, exitEase);
-    else if (cfg.exit === 'scale') {
-      const es = lerp(1, 0.88, exitEase);
-      scaleX *= es;
-      scaleY *= es;
-    } else if (cfg.exit === 'blur') {
-      blurPx = Math.max(blurPx, lerp(0, 10, exitEase));
-    }
-  }
-
-  if (globalAlpha <= 0.01) {
-    ctx.restore();
-    return;
-  }
-
-  ctx.globalAlpha = clamp(globalAlpha, 0, 1);
-  ctx.translate(anchorX + offsetX, baseY + offsetY);
-  if (rotateRad !== 0) ctx.rotate(rotateRad);
-  if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY);
-  if (blurPx > 0.2 && typeof ctx.filter === 'string') {
-    ctx.filter = `blur(${blurPx.toFixed(1)}px)`;
-  }
-
-  const effectiveTracking =
-    cfg.entrance === 'tracking-reveal'
-      ? cfg.letterSpacing + lerp(8 * intensity, 0, enterProgress)
-      : cfg.letterSpacing;
-
-  const lineWidths = lines.map((l) =>
-    measureWordWithSpacing(ctx, l, effectiveTracking)
-  );
-  const widest = Math.max(...lineWidths, 40);
-  const boxW = widest + cfg.paddingX * 2;
-  const boxH = totalHeight + cfg.paddingY * 2;
-
-  if (cfg.entrance === 'mask-reveal' && rawEnter < 1) {
-    if (typeof ctx.clip === 'function') {
-      ctx.beginPath();
-      const maskH = boxH * enterProgress;
-      ctx.rect(-boxW / 2 - 20, boxH / 2 - maskH, boxW + 40, maskH + 8);
-      ctx.clip();
-    }
-  }
-
-  drawContainerBackground(ctx, cfg, -boxW / 2, -boxH / 2, boxW, boxH);
-  const startY = -totalHeight / 2 + lineHeight / 2;
-
-  lineTokens.forEach((tokens, lineIdx) => {
-    const lineY = startY + lineIdx * lineHeight;
-    const isSplitTop = cfg.styleDef.layoutMode === 'split-editorial' && lineIdx === 0;
-    const lineScale = isSplitTop ? 0.82 : 1;
-    const lineAlpha =
-      cfg.entrance === 'line-reveal'
-        ? clamp((rawEnter * lines.length - lineIdx) * 1.4, 0, 1)
-        : 1;
-
-    if (lineAlpha <= 0.01) return;
-
+  // Panel backgrounds for board/card styles
+  if (styleId === 'kotak_gelap') {
     ctx.save();
-    ctx.globalAlpha *= lineAlpha;
-    if (lineScale !== 1) ctx.scale(lineScale, lineScale);
-
-    const spaceW = ctx.measureText(' ').width + effectiveTracking;
-    const wordWidths = tokens.map((t) => {
-      const fontWeight =
-        t.isEmphasis && cfg.emphasisStyle === 'bold'
-          ? Math.min(900, cfg.fontWeight + 200)
-          : cfg.fontWeight;
-      const fontFam =
-        t.isEmphasis && cfg.emphasisStyle === 'font'
-          ? '"Playfair Display", Georgia, serif'
-          : cfg.fontFamily;
-      ctx.font = `${fontWeight} ${cfg.fontSize}px ${fontFam}`;
-      return measureWordWithSpacing(ctx, t.text, effectiveTracking);
-    });
-
-    const totalLineW =
-      wordWidths.reduce((a, b) => a + b, 0) +
-      Math.max(0, tokens.length - 1) * spaceW;
-
-    let cursorX =
-      cfg.textAlign === 'left'
-        ? -widest / 2
-        : cfg.textAlign === 'right'
-          ? widest / 2 - totalLineW
-          : -totalLineW / 2;
-
-    const needsWordPass =
-      effectiveTracking !== 0 ||
-      cfg.entrance === 'word-stagger' ||
-      cfg.entrance === 'word-highlight' ||
-      cfg.entrance === 'highlight-sweep' ||
-      cfg.styleDef.decorMode === 'focus-word' ||
-      cfg.styleDef.decorMode === 'dynamic-capsule' ||
-      cfg.styleDef.decorMode === 'minimal-underline' ||
-      cfg.styleDef.decorMode === 'scribble-underline' ||
-      cfg.styleDef.decorMode === 'marker' ||
-      cfg.styleDef.decorMode === 'gradient' ||
-      cfg.styleDef.decorMode === 'shadow-depth' ||
-      cfg.styleDef.decorMode === 'glitch' ||
-      tokens.some((t) => t.isEmphasis);
-
-    if (!needsWordPass) {
-      const lineText = lines[lineIdx];
-      ctx.font = `${isSplitTop ? 500 : cfg.fontWeight} ${cfg.fontSize}px ${cfg.fontFamily}`;
-      ctx.textAlign = cfg.textAlign;
-      const drawX =
-        cfg.textAlign === 'left'
-          ? -widest / 2
-          : cfg.textAlign === 'right'
-            ? widest / 2
-            : 0;
-      if (cfg.outlineWidth > 0) {
-        ctx.lineWidth = cfg.outlineWidth;
-        ctx.strokeStyle = cfg.outlineColor;
-        ctx.lineJoin = 'round';
-        ctx.strokeText(lineText, drawX, lineY);
-      }
-      if (cfg.textShadow > 0) {
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-        ctx.shadowBlur = cfg.textShadow;
-        ctx.shadowOffsetY = 2;
-      }
-      ctx.fillStyle = cfg.textColor;
-      ctx.fillText(lineText, drawX, lineY);
+    ctx.fillStyle = 'rgba(9, 13, 22, 0.84)';
+    drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 14);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  } else if (styleId === 'neon') {
+    ctx.save();
+    ctx.fillStyle = 'rgba(7, 11, 20, 0.88)';
+    drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 12);
+    ctx.fill();
+    ctx.shadowColor = cfg.accentColor;
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = cfg.accentColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  } else if (styleId === 'kartu_selotip') {
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 5;
+    ctx.fillStyle = '#FBF5E6';
+    drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 6);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#D6C7A9';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Yellow masking tape at top edge
+    ctx.translate(0, boxY);
+    ctx.rotate(-0.03);
+    ctx.fillStyle = 'rgba(253, 224, 71, 0.82)';
+    ctx.fillRect(-38, -9, 76, 18);
+    ctx.restore();
+  } else if (styleId === 'stiker_kertas') {
+    lines.forEach((line, li) => {
+      const lw = line.totalWidth + 28;
+      const lh = effectiveFontSize * 1.24;
+      const tilt = li % 2 === 0 ? -0.014 : 0.012;
+      ctx.save();
+      ctx.translate(0, line.y);
+      ctx.rotate(tilt);
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+      ctx.fillStyle = '#FAF6EC';
+      drawRoundedRect(ctx, -lw / 2, -lh / 2, lw, lh, 4);
+      ctx.fill();
       ctx.restore();
-      return;
+    });
+  } else if (styleId === 'sorot_kata' && activeIdx >= 0) {
+    // Smooth sliding orange/accent marker pill behind active word
+    const allWords = lines.flatMap((l) => l.words);
+    const curW = allWords[activeIdx];
+    const prevW = activeIdx > 0 ? allWords[activeIdx - 1] : curW;
+    if (curW && prevW) {
+      const wp = getWordProgress(localTime, curW.timing);
+      const slideT = ease.out(clamp(wp.elapsed / Math.min(0.18, wp.wordDur * 0.55), 0, 1));
+      const sameLine = curW.lineIndex === prevW.lineIndex;
+      const pillX = (sameLine ? lerp(prevW.x, curW.x, slideT) : curW.x) - 8;
+      const pillW = (sameLine ? lerp(prevW.width, curW.width, slideT) : curW.width) + 16;
+      const pillY = (sameLine ? curW.y : lerp(prevW.y, curW.y, slideT)) - effectiveFontSize * 0.62;
+      const pillH = effectiveFontSize * 1.24;
+      ctx.save();
+      ctx.fillStyle = cfg.accentColor;
+      drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 8);
+      ctx.fill();
+      ctx.restore();
     }
+  }
 
-    tokens.forEach((token, wi) => {
-      const wW = wordWidths[wi];
-      const wCenterX = cursorX + wW / 2;
-      const isCurrent = token.globalIndex === activeWordIdx;
+  // Render each word according to its style & audio-aligned WordTiming
+  for (const line of lines) {
+    const lineTilt =
+      styleId === 'stiker_kertas' ? (line.lineIndex % 2 === 0 ? -0.014 : 0.012) : 0;
 
-      let wordAlpha = 1;
-      let wordY = 0;
-      let wordScale = 1;
-      if (cfg.entrance === 'word-stagger') {
-        const wProg = clamp(
-          rawEnter * Math.max(2, totalWords) - token.globalIndex * 0.65,
-          0,
-          1
-        );
-        const wEase = applySubtitleEasing(wProg, cfg.easing);
-        wordAlpha = wProg;
-        wordY = lerp(14 * intensity, 0, wEase);
-      }
+    for (const tok of line.words) {
+      const wp = getWordProgress(localTime, tok.timing);
+      const isCurrent = tok.globalIndex === activeIdx;
 
-      if (token.isEmphasis) {
-        if (cfg.emphasisStyle === 'scale') wordScale = cfg.emphasisScale;
-        else if (cfg.emphasisStyle === 'pop') {
-          const popT = clamp(animTime * 2.2 - token.globalIndex * 0.08, 0, 1);
-          wordScale = lerp(1, cfg.emphasisScale, ease.outBack(popT));
-        }
-      }
+      const appearOneByOne =
+        styleId === 'tulisan_tangan' ||
+        styleId === 'mesin_ketik' ||
+        styleId === 'pop_tebal' ||
+        styleId === 'kotak_putih' ||
+        styleId === 'panduan_atas' ||
+        styleId === 'elegan_atas';
 
-      if (cfg.styleDef.decorMode === 'focus-word' && !isCurrent && !token.isEmphasis) {
-        wordAlpha *= 0.45;
+      if (appearOneByOne && !wp.isRevealed) {
+        continue;
       }
 
       ctx.save();
-      ctx.globalAlpha *= wordAlpha;
-      ctx.translate(wCenterX, lineY + wordY);
-      if (wordScale !== 1) ctx.scale(wordScale, wordScale);
+      if (lineTilt !== 0) {
+        ctx.translate(0, line.y);
+        ctx.rotate(lineTilt);
+        ctx.translate(tok.x, 0);
+      } else {
+        ctx.translate(tok.x, line.y);
+      }
 
-      const fontWeight =
-        token.isEmphasis && (cfg.emphasisStyle === 'bold' || cfg.emphasisStyle === 'scale')
-          ? Math.min(900, cfg.fontWeight + 200)
-          : isSplitTop
-            ? 500
-            : cfg.fontWeight;
-      const fontFam =
-        token.isEmphasis && cfg.emphasisStyle === 'font'
-          ? '"Playfair Display", Georgia, serif'
-          : cfg.fontFamily;
-      ctx.font = `${fontWeight} ${cfg.fontSize}px ${fontFam}`;
-      ctx.textAlign = 'left';
+      let wordWeight = cfg.styleDef.fontWeight;
+      if (styleId === 'panduan_atas' && isCurrent) wordWeight = 800;
+      else if (styleId === 'elegan_atas' && tok.isEmphasis) wordWeight = 700;
+      else if (styleId === 'garis_bawah' && tok.isEmphasis) wordWeight = 900;
+      ctx.font = `${fontStylePrefix}${wordWeight} ${effectiveFontSize}px ${cfg.styleDef.fontFamily}`;
 
-      const showDynamicPill =
-        cfg.styleDef.decorMode === 'dynamic-capsule' && isCurrent;
-      const showEmphasisBg =
-        token.isEmphasis && cfg.emphasisStyle === 'bg-highlight';
-      if (showDynamicPill || showEmphasisBg) {
+      // 1. TULISAN TANGAN: pen write clip + scribble underline on keyword
+      if (styleId === 'tulisan_tangan') {
+        const writeFrac = wp.hasSpoken ? 1 : clamp(wp.progress * 1.05, 0.08, 1);
         ctx.save();
-        ctx.fillStyle = showEmphasisBg ? cfg.emphasisColor : cfg.highlightColor;
+        ctx.beginPath();
+        ctx.rect(-4, -effectiveFontSize, tok.width * writeFrac + 8, effectiveFontSize * 2);
+        ctx.clip();
+        drawSubtitleText(ctx, tok.word, 0, 0, cfg.textColor, {
+          shadowBlur: 6,
+          shadowColor: 'rgba(0,0,0,0.75)',
+        });
+        ctx.restore();
+        if (tok.isEmphasis) {
+          drawHandwrittenScribble(
+            ctx,
+            0,
+            effectiveFontSize * 0.48,
+            tok.width,
+            cfg.accentColor,
+            writeFrac
+          );
+        }
+        ctx.restore();
+        continue;
+      }
+
+      // 2. MESIN KETIK: char-by-char synced to wordProgress + blinking cursor
+      if (styleId === 'mesin_ketik') {
+        const charCount = wp.hasSpoken
+          ? tok.word.length
+          : Math.max(1, Math.ceil(tok.word.length * wp.progress));
+        const shown = tok.word.slice(0, charCount);
+        drawSubtitleText(ctx, shown, 0, 0, cfg.textColor, {
+          outlineWidth: 3.5,
+          outlineColor: 'rgba(6,9,19,0.85)',
+        });
+        if (isCurrent && Math.floor(localTime * 3.5) % 2 === 0) {
+          const caretX = ctx.measureText(shown).width + 2;
+          ctx.fillStyle = cfg.accentColor;
+          ctx.fillRect(caretX, -effectiveFontSize * 0.45, 3, effectiveFontSize * 0.9);
+        }
+        ctx.restore();
+        continue;
+      }
+
+      // 3. POP TEBAL: punchy pop per word
+      if (styleId === 'pop_tebal') {
+        const popT = clamp(wp.elapsed / Math.min(0.24, wp.wordDur * 0.65), 0, 1);
+        const sc = lerp(0.55, 1, ease.outBack(popT));
+        ctx.translate(tok.width / 2, 0);
+        ctx.scale(sc, sc);
+        ctx.translate(-tok.width / 2, 0);
+        const col = isCurrent || tok.isEmphasis ? cfg.accentColor : cfg.textColor;
+        drawSubtitleText(ctx, tok.word, 0, 0, col, {
+          outlineWidth: 6,
+          outlineColor: 'rgba(6,9,19,0.94)',
+          shadowBlur: 12,
+        });
+        ctx.restore();
+        continue;
+      }
+
+      // 4. KOTAK PUTIH (TikTok style): white box grows per word, black text
+      if (styleId === 'kotak_putih') {
+        const growT = clamp(wp.elapsed / Math.min(0.2, wp.wordDur * 0.6), 0, 1);
+        const sc = lerp(0.75, 1, ease.outBack(growT));
+        ctx.translate(tok.width / 2, 0);
+        ctx.scale(sc, sc);
+        ctx.translate(-tok.width / 2, 0);
+        ctx.fillStyle = '#FFFFFF';
         drawRoundedRect(
           ctx,
-          -wW / 2 - 8,
-          -cfg.fontSize * 0.62,
-          wW + 16,
-          cfg.fontSize * 1.24,
-          8
+          -6,
+          -effectiveFontSize * 0.58,
+          tok.width + 12,
+          effectiveFontSize * 1.16,
+          7
         );
         ctx.fill();
-        ctx.restore();
-      }
-
-      if (
-        (token.isEmphasis && cfg.emphasisStyle === 'marker') ||
-        (cfg.styleDef.decorMode === 'marker' && (token.isEmphasis || isCurrent))
-      ) {
-        const drawProg =
-          cfg.entrance === 'marker-draw' ? clamp(rawEnter * 1.3, 0, 1) : 1;
-        ctx.save();
-        ctx.rotate(-0.025);
-        ctx.fillStyle = hexToRgba(cfg.emphasisColor, 0.78);
-        ctx.fillRect(
-          -wW / 2 - 5,
-          -cfg.fontSize * 0.42,
-          (wW + 10) * drawProg,
-          cfg.fontSize * 0.88
+        drawSubtitleText(
+          ctx,
+          tok.word,
+          0,
+          0,
+          tok.isEmphasis ? cfg.accentColor : cfg.textColor
         );
         ctx.restore();
+        continue;
       }
 
-      if (cfg.styleDef.decorMode === 'shadow-depth') {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
-        drawTextWithSpacing(ctx, token.text, -wW / 2 + 4, 4, effectiveTracking, 'fill');
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
-        drawTextWithSpacing(ctx, token.text, -wW / 2 + 7, 7, effectiveTracking, 'fill');
-      }
-
-      if (cfg.styleDef.decorMode === 'glitch') {
-        ctx.save();
-        ctx.globalAlpha *= 0.65;
-        ctx.fillStyle = '#29E7FF';
-        drawTextWithSpacing(ctx, token.text, -wW / 2 - 2, 0, effectiveTracking, 'fill');
-        ctx.fillStyle = '#FF3FD1';
-        drawTextWithSpacing(ctx, token.text, -wW / 2 + 2, 0, effectiveTracking, 'fill');
-        ctx.restore();
-      }
-
-      if (cfg.outlineWidth > 0) {
-        ctx.lineWidth = cfg.outlineWidth;
-        ctx.strokeStyle = cfg.outlineColor;
-        ctx.lineJoin = 'round';
-        drawTextWithSpacing(ctx, token.text, -wW / 2, 0, effectiveTracking, 'stroke');
-      }
-
-      if (token.isEmphasis && cfg.emphasisStyle === 'glow') {
-        ctx.shadowColor = cfg.emphasisColor;
-        ctx.shadowBlur = 16;
-      } else if (cfg.textShadow > 0) {
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-        ctx.shadowBlur = cfg.textShadow;
-        ctx.shadowOffsetY = 2;
-      }
-
-      let fillStyle: string | CanvasGradient = cfg.textColor;
-      if (
-        cfg.styleDef.decorMode === 'gradient' &&
-        cfg.styleDef.gradientColors &&
-        typeof ctx.createLinearGradient === 'function'
-      ) {
-        const grad = ctx.createLinearGradient(-wW / 2, 0, wW / 2, 0);
-        grad.addColorStop(0, cfg.styleDef.gradientColors[0]);
-        grad.addColorStop(1, cfg.styleDef.gradientColors[1]);
-        fillStyle = grad;
-      }
-      if (
-        (cfg.entrance === 'word-highlight' || cfg.entrance === 'highlight-sweep') &&
-        isCurrent &&
-        !showDynamicPill
-      ) {
-        fillStyle = cfg.highlightColor;
-      }
-      if (
-        token.isEmphasis &&
-        (cfg.emphasisStyle === 'color' ||
-          cfg.emphasisStyle === 'accent' ||
-          cfg.emphasisStyle === 'glow' ||
-          cfg.emphasisStyle === 'pop')
-      ) {
-        fillStyle = cfg.emphasisColor;
-      } else if (showDynamicPill || showEmphasisBg) {
-        fillStyle = '#070A12';
-      }
-
-      ctx.fillStyle = fillStyle;
-      drawTextWithSpacing(ctx, token.text, -wW / 2, 0, effectiveTracking, 'fill');
-
-      const drawUnderline =
-        (token.isEmphasis && cfg.emphasisStyle === 'underline') ||
-        (cfg.styleDef.decorMode === 'minimal-underline' && (token.isEmphasis || isCurrent)) ||
-        (cfg.styleDef.decorMode === 'scribble-underline' && (token.isEmphasis || isCurrent));
-
-      if (drawUnderline) {
-        const uProg =
-          cfg.entrance === 'underline-draw' ? clamp(rawEnter * 1.25, 0, 1) : 1;
-        const uY = cfg.fontSize * 0.54;
-        const uWidth = Math.max(2.5, Math.round(cfg.fontSize * 0.095));
-        ctx.save();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = cfg.emphasisColor;
-        ctx.lineWidth = uWidth;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        if (cfg.styleDef.decorMode === 'scribble-underline') {
-          const steps = 6;
-          const segW = (wW * uProg) / steps;
-          ctx.moveTo(-wW / 2, uY);
-          for (let s = 1; s <= steps; s++) {
-            const sx = -wW / 2 + s * segW;
-            const sy = uY + (s % 2 === 0 ? -2.2 : 2.2);
-            ctx.lineTo(sx, sy);
-          }
-        } else {
-          ctx.moveTo(-wW / 2, uY);
-          ctx.lineTo(-wW / 2 + wW * uProg, uY);
+      // 5. KARAOKE: dim full sentence, fills smoothly left-to-right per word
+      if (styleId === 'karaoke') {
+        drawSubtitleText(ctx, tok.word, 0, 0, hexToRgba(cfg.textColor, 0.34), {
+          outlineWidth: 4,
+          outlineColor: 'rgba(0,0,0,0.65)',
+        });
+        const fillFrac = wp.hasSpoken ? 1 : wp.isActive ? wp.progress : 0;
+        if (fillFrac > 0.01) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(-2, -effectiveFontSize, (tok.width + 4) * fillFrac, effectiveFontSize * 2);
+          ctx.clip();
+          drawSubtitleText(
+            ctx,
+            tok.word,
+            0,
+            0,
+            tok.isEmphasis ? cfg.accentColor : cfg.textColor,
+            {
+              outlineWidth: 4,
+              outlineColor: 'rgba(0,0,0,0.85)',
+            }
+          );
+          ctx.restore();
         }
-        ctx.stroke();
         ctx.restore();
+        continue;
       }
 
-      ctx.restore();
-      cursorX += wW + spaceW;
-    });
+      // 6. KOTAK GELAP: muted before spoken, bright white when spoken/active, accent on keyword
+      if (styleId === 'kotak_gelap') {
+        const col = tok.isEmphasis
+          ? wp.isRevealed
+            ? cfg.accentColor
+            : hexToRgba(cfg.accentColor, 0.45)
+          : wp.isRevealed
+            ? cfg.textColor
+            : 'rgba(226, 232, 240, 0.36)';
+        drawSubtitleText(ctx, tok.word, 0, 0, col);
+        ctx.restore();
+        continue;
+      }
 
-    ctx.restore();
-  });
+      // 7. GLITCH: cyan & magenta vibrating shadows when word appears
+      if (styleId === 'glitch') {
+        const isGlitching = wp.isRevealed && wp.elapsed < 0.24;
+        const jx = isGlitching ? (rand(Math.floor(localTime * 45) + tok.globalIndex * 7) - 0.5) * 8 : 1.5;
+        const jy = isGlitching ? (rand(Math.floor(localTime * 45) + tok.globalIndex * 13) - 0.5) * 4 : 0;
+        ctx.globalAlpha *= wp.isRevealed ? 1 : 0.35;
+        ctx.fillStyle = '#22D3EE';
+        ctx.fillText(tok.word, -2.5 - jx, -jy);
+        ctx.fillStyle = '#F43F5E';
+        ctx.fillText(tok.word, 2.5 + jx, jy);
+        drawSubtitleText(ctx, tok.word, 0, 0, cfg.textColor, {
+          outlineWidth: 2,
+          outlineColor: 'rgba(0,0,0,0.7)',
+        });
+        ctx.restore();
+        continue;
+      }
+
+      // 8. PANDUAN ATAS: top screen, words appear 1 by 1, current bold white, keyword yellow box
+      if (styleId === 'panduan_atas') {
+        if (tok.isEmphasis) {
+          ctx.strokeStyle = cfg.accentColor;
+          ctx.lineWidth = 2;
+          drawRoundedRect(
+            ctx,
+            -5,
+            -effectiveFontSize * 0.56,
+            tok.width + 10,
+            effectiveFontSize * 1.12,
+            6
+          );
+          ctx.stroke();
+        }
+        const col = isCurrent ? '#FFFFFF' : 'rgba(241, 245, 249, 0.72)';
+        drawSubtitleText(ctx, tok.word, 0, 0, col, {
+          outlineWidth: 3.5,
+          outlineColor: 'rgba(0,0,0,0.8)',
+        });
+        ctx.restore();
+        continue;
+      }
+
+      // 9. ELEGAN ATAS: top screen, thin italic serif, keyword bold, slow gentle fade
+      if (styleId === 'elegan_atas') {
+        const fadeT = clamp(wp.elapsed / Math.min(0.45, wp.wordDur * 0.85), 0, 1);
+        ctx.globalAlpha *= ease.out(fadeT);
+        drawSubtitleText(
+          ctx,
+          tok.word,
+          0,
+          0,
+          tok.isEmphasis ? cfg.accentColor : cfg.textColor,
+          { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.85)' }
+        );
+        ctx.restore();
+        continue;
+      }
+
+      // 10. NEON: dark board, glowing words with brief flicker on appear
+      if (styleId === 'neon') {
+        let flicker = 1;
+        if (wp.isRevealed && wp.elapsed < 0.2) {
+          flicker = Math.floor(wp.elapsed * 32) % 2 === 0 ? 0.45 : 1;
+        }
+        ctx.globalAlpha *= wp.isRevealed ? flicker : 0.28;
+        const glowColor = tok.isEmphasis ? '#F472B6' : cfg.accentColor;
+        drawSubtitleText(ctx, tok.word, 0, 0, wp.isRevealed ? '#FFFFFF' : '#94A3B8', {
+          shadowBlur: wp.isRevealed ? 16 : 0,
+          shadowColor: glowColor,
+        });
+        ctx.restore();
+        continue;
+      }
+
+      // 11. KARTU SELOTIP: cream card with yellow tape, keyword highlighted yellow
+      if (styleId === 'kartu_selotip') {
+        if (tok.isEmphasis) {
+          const prog = wp.isRevealed ? clamp(wp.progress * 1.4, 0.2, 1) : 0.25;
+          drawYellowHighlighter(
+            ctx,
+            0,
+            0,
+            tok.width,
+            effectiveFontSize * 1.05,
+            cfg.accentColor,
+            prog
+          );
+        }
+        ctx.globalAlpha *= wp.isRevealed ? 1 : 0.55;
+        drawSubtitleText(ctx, tok.word, 0, 0, cfg.textColor);
+        ctx.restore();
+        continue;
+      }
+
+      // 12. STIKER KERTAS: paper strip per line, keyword circled in ink
+      if (styleId === 'stiker_kertas') {
+        ctx.globalAlpha *= wp.isRevealed ? 1 : 0.6;
+        drawSubtitleText(ctx, tok.word, 0, 0, cfg.textColor);
+        if (tok.isEmphasis) {
+          const prog = wp.isRevealed ? clamp(wp.progress * 1.3, 0.3, 1) : 0.3;
+          drawInkCircle(
+            ctx,
+            tok.width / 2,
+            0,
+            tok.width * 0.58 + 5,
+            effectiveFontSize * 0.62,
+            cfg.accentColor,
+            prog
+          );
+        }
+        ctx.restore();
+        continue;
+      }
+
+      // 13. GARIS BAWAH: clean uppercase no panel, keyword bolder with accent underline
+      if (styleId === 'garis_bawah') {
+        ctx.globalAlpha *= wp.isRevealed ? 1 : 0.62;
+        drawSubtitleText(
+          ctx,
+          tok.word,
+          0,
+          0,
+          tok.isEmphasis ? cfg.accentColor : cfg.textColor,
+          {
+            outlineWidth: 4.5,
+            outlineColor: 'rgba(6, 9, 19, 0.85)',
+            shadowBlur: 8,
+          }
+        );
+        if (tok.isEmphasis) {
+          ctx.fillStyle = cfg.accentColor;
+          ctx.fillRect(0, effectiveFontSize * 0.48, tok.width, 3);
+        }
+        ctx.restore();
+        continue;
+      }
+
+      // 14. SOROT KATA: clean text over the sliding pill
+      drawSubtitleText(ctx, tok.word, 0, 0, cfg.textColor, {
+        outlineWidth: 4,
+        outlineColor: 'rgba(0,0,0,0.78)',
+      });
+      ctx.restore();
+    }
+  }
 
   ctx.restore();
 }
@@ -796,31 +859,31 @@ export function renderSubtitlePreviewFrame(
   localTime: number,
   sceneDuration: number,
   emphasis?: string,
-  palette?: PalettePreset
+  palette?: PalettePreset,
+  audioDataUrl?: string,
+  audioDurationSec?: number
 ): void {
   ctx.save();
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = palette?.bg || '#0B101B';
+  const bg = ctx.createLinearGradient(0, 0, 0, height);
+  if (palette?.isLight) {
+    bg.addColorStop(0, palette.bg);
+    bg.addColorStop(1, palette.secondary || '#E2E8F0');
+  } else {
+    bg.addColorStop(0, palette?.bg || '#0B0E14');
+    bg.addColorStop(1, '#131B2E');
+  }
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
-  ctx.strokeStyle = palette?.isLight ? 'rgba(15,23,42,0.06)' : 'rgba(148,163,184,0.08)';
-  ctx.lineWidth = 1;
-  const step = 48;
-  for (let x = step; x < width; x += step) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-  for (let y = step; y < height; y += step) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = palette?.primary || '#38BDF8';
+  ctx.beginPath();
+  ctx.arc(width * 0.5, height * 0.42, Math.min(width, height) * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
 
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
-  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+  ctx.setLineDash([5, 5]);
   ctx.strokeRect(20, 20, width - 40, height - 40);
   ctx.setLineDash([]);
 
@@ -834,6 +897,11 @@ export function renderSubtitlePreviewFrame(
     sceneDuration,
     emphasis,
     palette,
+    audioDataUrl,
+    audioDurationSec,
   });
+
   ctx.restore();
 }
+
+

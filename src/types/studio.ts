@@ -36,7 +36,6 @@ export interface VideoStylePreset {
   palette: PalettePreset;
   subtitleDefaults: {
     style: SubtitleStyle;
-    animation: SubtitleAnimation;
   };
   animationCardPrompt: string;
   sampleCode: string;
@@ -76,173 +75,28 @@ export interface SeoMetadata {
 }
 
 export type SubtitleStyle =
-  // Legacy / Core 3 styles (preserved for 100% backward compatibility)
-  | 'clean'
-  | 'boxed'
-  | 'ivory-capsule'
-  // A. Minimal & Editorial
-  | 'clean-minimal'
-  | 'editorial-serif'
-  | 'cinematic-caption'
-  | 'minimal-underline'
-  | 'split-editorial'
-  // B. Modern & Social Media
-  | 'modern-bold'
-  | 'dynamic-capsule'
-  | 'gradient-typography'
-  | 'stacked-words'
-  | 'floating-caption'
-  // C. Kinetic Typography
-  | 'kinetic-pop'
-  | 'bounce-typography'
-  | 'staggered-text'
-  | 'scale-emphasis'
-  | 'vertical-reveal'
-  | 'directional-slide'
-  | 'letter-spacing-reveal'
-  // D. Creative & Artistic
-  | 'handwritten'
-  | 'marker-highlight'
-  | 'sketch-caption'
-  | 'text-stamp'
-  | 'chalk-typography'
-  | 'cutout-typography'
-  | 'scribble-underline'
-  // E. Cinematic & Dramatic
-  | 'cinematic-fade'
-  | 'dramatic-reveal'
-  | 'blur-reveal'
-  | 'glitch-typography'
-  | 'shadow-depth'
-  | 'focus-word';
-
-export type SubtitleAnimation =
-  // Legacy / Core 3 animations
-  | 'static'
-  | 'typewriter'
-  | 'word-highlight'
-  // New 20 motion animations
-  | 'fade'
-  | 'slide-up'
-  | 'slide-down'
-  | 'slide-left'
-  | 'slide-right'
-  | 'scale'
-  | 'pop'
-  | 'bounce'
-  | 'blur'
-  | 'letter-reveal'
-  | 'word-stagger'
-  | 'line-reveal'
-  | 'mask-reveal'
-  | 'elastic'
-  | 'rotate'
-  | 'spring'
-  | 'flip'
+  | 'tulisan_tangan'
+  | 'mesin_ketik'
+  | 'sorot_kata'
+  | 'stiker_kertas'
+  | 'pop_tebal'
+  | 'karaoke'
+  | 'kotak_putih'
+  | 'kotak_gelap'
   | 'glitch'
-  | 'tracking-reveal'
-  | 'highlight-sweep'
-  | 'underline-draw'
-  | 'marker-draw';
-
-export type SubtitleExitAnimation =
-  | 'none'
-  | 'fade'
-  | 'slide-down'
-  | 'slide-up'
-  | 'scale'
-  | 'blur';
-
-export type SubtitleEasing =
-  | 'linear'
-  | 'easeOut'
-  | 'easeInOut'
-  | 'spring'
-  | 'back'
-  | 'bounce';
-
-export type SubtitleDirection = 'up' | 'down' | 'left' | 'right';
-
-export type SubtitleEmphasisStyle =
-  | 'underline'
-  | 'color'
-  | 'bold'
-  | 'scale'
-  | 'bg-highlight'
-  | 'marker'
-  | 'glow'
-  | 'accent'
-  | 'font'
-  | 'pop';
-
-export type SubtitlePresetId =
-  | 'cinematic'
-  | 'documentary'
-  | 'explainer'
-  | 'storytelling'
-  | 'hand-drawn'
-  | 'kinetic'
-  | 'minimalist'
-  | 'dramatic'
-  | 'social-media';
-
-export interface SubtitleTypographySettings {
-  fontFamily?: string;
-  fontWeight?: number;
-  textColor?: string;
-  letterSpacing?: number;
-  lineHeight?: number;
-  textAlign?: 'left' | 'center' | 'right';
-  textTransform?: 'none' | 'uppercase' | 'lowercase';
-}
-
-export interface SubtitleAppearanceSettings {
-  bgColor?: string;
-  bgOpacity?: number;
-  borderRadius?: number;
-  paddingX?: number;
-  paddingY?: number;
-  textShadow?: number;
-  outlineWidth?: number;
-  outlineColor?: string;
-  highlightColor?: string;
-}
-
-export interface SubtitleAnimationSettings {
-  exit?: SubtitleExitAnimation;
-  duration?: number;
-  delay?: number;
-  easing?: SubtitleEasing;
-  direction?: SubtitleDirection;
-  intensity?: number;
-}
-
-export interface SubtitlePositionSettings {
-  verticalPercent?: number; // 10..92
-  horizontalAlign?: 'left' | 'center' | 'right';
-  maxWidthPercent?: number; // 45..94
-  safeAreaMargin?: number; // px
-}
-
-export interface SubtitleEmphasisSettings {
-  style?: SubtitleEmphasisStyle;
-  color?: string;
-  scale?: number;
-  autoHighlight?: boolean;
-}
+  | 'panduan_atas'
+  | 'elegan_atas'
+  | 'satu_kata'
+  | 'neon'
+  | 'kartu_selotip'
+  | 'garis_bawah';
 
 export interface SubtitleSettings {
   enabled: boolean;
   fontSize: number;
   position: 'bottom' | 'lower-third';
   style: SubtitleStyle;
-  animation?: SubtitleAnimation;
-  presetId?: SubtitlePresetId;
-  typography?: SubtitleTypographySettings;
-  appearance?: SubtitleAppearanceSettings;
-  animationConfig?: SubtitleAnimationSettings;
-  positionConfig?: SubtitlePositionSettings;
-  emphasisConfig?: SubtitleEmphasisSettings;
+  accentColor?: string;
 }
 
 export interface ProjectState {

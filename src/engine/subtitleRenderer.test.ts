@@ -1,14 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  applySubtitlePreset,
   extractAutoEmphasisKeywords,
-  getRecommendedPresetForVideoStyle,
+  getSubtitleStyleDef,
   resolveSubtitleConfig,
-  SUBTITLE_ANIMATIONS,
-  SUBTITLE_EMPHASIS_STYLES,
-  SUBTITLE_EXIT_ANIMATIONS,
-  SUBTITLE_PRESETS,
   SUBTITLE_STYLES,
 } from './subtitleConfig';
 import {
@@ -41,9 +36,9 @@ function createMockCanvasContext(): CanvasRenderingContext2D {
   });
 }
 
-test('All 33 subtitle styles render without errors across entrance, middle, and exit frames', () => {
+test('All 15 curated subtitle styles render without errors across entrance, middle, and end frames', () => {
   const ctx = createMockCanvasContext();
-  assert.ok(SUBTITLE_STYLES.length >= 33);
+  assert.equal(SUBTITLE_STYLES.length, 15);
 
   for (const styleDef of SUBTITLE_STYLES) {
     const settings: SubtitleSettings = {
@@ -51,7 +46,6 @@ test('All 33 subtitle styles render without errors across entrance, middle, and 
       fontSize: 28,
       position: 'bottom',
       style: styleDef.id,
-      animation: styleDef.defaultAnimation,
     };
 
     for (const t of [0.05, 0.4, 1.8, 3.4]) {
@@ -71,111 +65,39 @@ test('All 33 subtitle styles render without errors across entrance, middle, and 
   }
 });
 
-test('All 25 entrance animations and 6 exit animations render deterministically', () => {
+test('Legacy subtitle style IDs map cleanly and preview frame renders for all video palettes', () => {
   const ctx = createMockCanvasContext();
-  assert.ok(SUBTITLE_ANIMATIONS.length >= 23);
+  assert.equal(getSubtitleStyleDef('clean' as any).id, 'garis_bawah');
+  assert.equal(getSubtitleStyleDef('boxed' as any).id, 'kotak_gelap');
+  assert.equal(getSubtitleStyleDef('ivory-capsule' as any).id, 'kartu_selotip');
 
-  for (const anim of SUBTITLE_ANIMATIONS) {
-    for (const exit of SUBTITLE_EXIT_ANIMATIONS) {
-      const settings: SubtitleSettings = {
-        enabled: true,
-        fontSize: 28,
-        position: 'lower-third',
-        style: 'clean-minimal',
-        animation: anim.id,
-        animationConfig: {
-          exit: exit.id,
-          duration: anim.defaultDuration,
-          delay: 0.05,
-          easing: anim.defaultEasing,
-          direction: 'up',
-          intensity: 1.2,
-        },
-      };
-
-      assert.doesNotThrow(() => {
-        renderSubtitleOverlay({
-          ctx,
-          width: 1280,
-          height: 720,
-          text: 'Animasi subtitle profesional yang sinkron dengan timeline.',
-          subtitles: settings,
-          localTime: 0.35,
-          sceneDuration: 3.5,
-          emphasis: 'profesional',
-        });
-        renderSubtitleOverlay({
-          ctx,
-          width: 1280,
-          height: 720,
-          text: 'Animasi subtitle profesional yang sinkron dengan timeline.',
-          subtitles: settings,
-          localTime: 3.35,
-          sceneDuration: 3.5,
-          emphasis: 'profesional',
-        });
-      });
-    }
-  }
-});
-
-test('All 10 word emphasis styles and multi-phrase ranges work accurately', () => {
-  const ctx = createMockCanvasContext();
   const sample = 'Kita bantu kamu bedah isi kepala, supaya langkah kamu ke depan jadi lebih jelas.';
   const ranges = findEmphasisRanges(sample, 'bedah, isi kepala, lebih jelas');
   assert.equal(ranges.length, 3);
 
-  for (const emp of SUBTITLE_EMPHASIS_STYLES) {
+  for (const vs of VIDEO_STYLES) {
     const settings: SubtitleSettings = {
       enabled: true,
       fontSize: 30,
-      position: 'bottom',
-      style: 'modern-bold',
-      animation: 'pop',
-      emphasisConfig: {
-        style: emp.id,
-        color: '#FACC15',
-        scale: 1.18,
-      },
+      position: 'lower-third',
+      style: vs.subtitleDefaults.style,
     };
+    const resolved = resolveSubtitleConfig(settings, vs.palette);
+    assert.ok(resolved.styleDef.fontFamily.length > 0);
 
     assert.doesNotThrow(() => {
       renderSubtitlePreviewFrame(
         ctx,
-        640,
-        400,
+        540,
+        420,
         sample,
         settings,
         1.2,
         3.6,
         'bedah, isi kepala, lebih jelas',
-        VIDEO_STYLES[0].palette
+        vs.palette
       );
     });
-  }
-});
-
-test('All 9 subtitle presets apply cleanly and every video style has a recommended preset', () => {
-  assert.equal(SUBTITLE_PRESETS.length, 9);
-
-  const base: SubtitleSettings = {
-    enabled: true,
-    fontSize: 28,
-    position: 'bottom',
-    style: 'boxed',
-    animation: 'static',
-  };
-
-  for (const preset of SUBTITLE_PRESETS) {
-    const applied = applySubtitlePreset(base, preset.id);
-    assert.equal(applied.presetId, preset.id);
-    const resolved = resolveSubtitleConfig(applied);
-    assert.ok(resolved.fontFamily.length > 0);
-  }
-
-  for (const vs of VIDEO_STYLES) {
-    const rec = getRecommendedPresetForVideoStyle(vs.id);
-    assert.ok(SUBTITLE_PRESETS.some((p) => p.id === rec));
   }
 });
 
