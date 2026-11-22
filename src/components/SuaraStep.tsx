@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectState, SceneAudio } from '../types/studio';
-import { clampSceneDuration, formatTimecode, getTotalDuration } from '../engine/motionMath';
+import { formatTimecode, getTotalDuration } from '../engine/motionMath';
 import { ApiRequestError, postJson } from '../utils/api';
 import { speakVoiceSample, stopVoiceSample } from '../utils/voicePreview';
 import {
@@ -150,7 +150,7 @@ export function SuaraStep({
               audio,
               durationSec:
                 syncDuration && syncDuration > 0.5
-                  ? clampSceneDuration(Math.max(syncDuration, sc.durationSec), sc.durationSec)
+                  ? Math.max(syncDuration, sc.durationSec)
                   : sc.durationSec,
             }
           : sc

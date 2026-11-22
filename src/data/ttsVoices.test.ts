@@ -64,7 +64,7 @@ test('buildScriptGenerationPrompt enforces natural narration rules and removes c
   assert.equal(prompt.includes('8-18 kata'), false);
 });
 
-test('buildScriptGenerationPrompt enforces max 4.0s per scene and auto-calculates scene count when omitted', () => {
+test('buildScriptGenerationPrompt adapts scene count and duration naturally to narration when sceneCount is omitted', () => {
   const prompt = buildScriptGenerationPrompt({
     topic: 'Kenapa susah fokus pagi hari',
     styleTone: 'Storytelling Santai & Mengalir',
@@ -77,6 +77,7 @@ test('buildScriptGenerationPrompt enforces max 4.0s per scene and auto-calculate
     paletteColors: { bg: '#ffffff', primary: '#4f6bff' },
   });
 
-  assert.ok(prompt.includes('maksimal 4.0 detik'));
-  assert.ok(prompt.includes('minimal 7 scene'));
+  assert.ok(prompt.includes('PRINSIP DURASI SCENE NATURAL'));
+  assert.ok(prompt.includes('tentukan jumlah scene secara alami'));
+  assert.equal(prompt.includes('DILARANG keras membuat scene lebih dari 4.0 detik'), false);
 });

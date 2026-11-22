@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ProjectState, SceneItem } from '../types/studio';
-import { clampSceneDuration, formatTimecode, getTotalDuration, PALETTE_PRESETS } from '../engine/motionMath';
+import { estimateNarrationDurationSec, formatTimecode, getTotalDuration, PALETTE_PRESETS } from '../engine/motionMath';
 import {
   extractAutoEmphasisKeywords,
   resolveSubtitleConfig,
@@ -187,20 +187,19 @@ export function NarasiStep({
                     <label
                       htmlFor={`dur-${scene.id}`}
                       className="text-xs text-slate-400"
-                      title="Durasi maksimal 4 detik per scene"
                     >
-                      Durasi (maks 4 dtk)
+                      Durasi (dtk)
                     </label>
                     <input
                       id={`dur-${scene.id}`}
                       type="number"
                       step="0.1"
                       min="0.5"
-                      max="4"
+                      max="60"
                       value={scene.durationSec}
                       onChange={(e) =>
                         updateScene(scene.id, {
-                          durationSec: clampSceneDuration(Number(e.target.value) || 1, 1),
+                          durationSec: Math.max(0.5, Number(e.target.value) || 1),
                         })
                       }
                       className="w-20 bg-[#0B0E14] border border-[#263042] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white text-right tabular-nums focus:outline-none focus:border-sky-500"
@@ -253,7 +252,20 @@ export function NarasiStep({
                       id={`narration-${scene.id}`}
                       rows={3}
                       value={scene.narration}
-                      onChange={(e) => updateScene(scene.id, { narration: e.target.value })}
+                      onChange={(e) => {
+                        const nextNarration = e.target.value;
+                        updateScene(scene.id, {
+                          narration: nextNarration,
+                          ...(scene.audio.sourceType === 'none'
+                            ? {
+                                durationSec: estimateNarrationDurationSec(
+                                  nextNarration,
+                                  scene.durationSec
+                                ),
+                              }
+                            : {}),
+                        });
+                      }}
                       className="w-full bg-[#0B0E14] border border-[#263042] rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
                     />
                     <div className="mt-2.5 space-y-1.5">

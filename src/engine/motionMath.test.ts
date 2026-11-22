@@ -4,15 +4,14 @@ import {
   at,
   buildMasterPrompt,
   buildPromptForScene,
-  clampSceneDuration,
   ease,
+  estimateNarrationDurationSec,
   evaluateCamera,
   formatTimecode,
   getStylePreset,
   inferSceneDurationFromCode,
   keys,
   lerp,
-  MAX_SCENE_DURATION_SEC,
   PALETTE_PRESETS,
   rand,
   resolveSceneAtTime,
@@ -136,13 +135,17 @@ test('inferSceneDurationFromCode extracts max camera keyframe timestamp', () => 
   assert.equal(inferSceneDurationFromCode(`s.circle(10, 10, 5);`, 5), 5);
 });
 
-test('clampSceneDuration enforces mandatory 0.5s..4s scene duration cap', () => {
-  assert.equal(MAX_SCENE_DURATION_SEC, 4);
-  assert.equal(clampSceneDuration(6.5), 4);
-  assert.equal(clampSceneDuration(4.01), 4);
-  assert.equal(clampSceneDuration(3.25), 3.25);
-  assert.equal(clampSceneDuration(0.1), 0.5);
-  assert.equal(clampSceneDuration(Number.NaN, 3.2), 3.2);
+test('estimateNarrationDurationSec scales naturally with word/syllable count and punctuation', () => {
+  const shortDur = estimateNarrationDurationSec('Mulai sekarang juga.');
+  const mediumDur = estimateNarrationDurationSec('Kebanyakan orang gagal bukan karena malas, tapi kebanyakan mikir.');
+  const longDur = estimateNarrationDurationSec(
+    'Kalau kamu terus menunda sampai semuanya terasa sempurna, kamu tidak akan pernah benar-benar melangkah.'
+  );
+
+  assert.ok(shortDur >= 1.5 && shortDur <= 3.5);
+  assert.ok(mediumDur > shortDur && mediumDur > 4);
+  assert.ok(longDur > mediumDur);
+  assert.equal(estimateNarrationDurationSec('   ', 3.2), 3.2);
 });
 
 test('resolveSceneAtTime maps global time to local scene time', () => {

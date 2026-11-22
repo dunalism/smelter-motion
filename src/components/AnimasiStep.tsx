@@ -3,7 +3,6 @@ import type { ProjectState, SceneItem } from '../types/studio';
 import {
   buildMasterPrompt,
   buildPromptForScene,
-  clampSceneDuration,
   formatTimecode,
   getCanvasDimensions,
   getStylePreset,
@@ -388,10 +387,7 @@ export function AnimasiStep({
 
   const handleSceneCodeChange = (newCode: string) => {
     if (!activeScene) return;
-    const inferred = clampSceneDuration(
-      inferSceneDurationFromCode(newCode, activeScene.durationSec),
-      activeScene.durationSec
-    );
+    const inferred = inferSceneDurationFromCode(newCode, activeScene.durationSec);
     onUpdateProject((prev) => ({
       ...prev,
       scenes: prev.scenes.map((sc, idx) =>
@@ -413,10 +409,7 @@ export function AnimasiStep({
     onUpdateProject((prev) => {
       const updatedScenes: SceneItem[] = blocks.map((blk, i) => {
         const existing = prev.scenes[i];
-        const dur = clampSceneDuration(
-          inferSceneDurationFromCode(blk.code, existing?.durationSec ?? 3.5),
-          existing?.durationSec ?? 3.5
-        );
+        const dur = inferSceneDurationFromCode(blk.code, existing?.durationSec ?? 4.5);
         if (existing) {
           return {
             ...existing,
@@ -445,10 +438,7 @@ export function AnimasiStep({
                 ? {
                     ...sc,
                     code: blocks[idx].code,
-                    durationSec: clampSceneDuration(
-                      inferSceneDurationFromCode(blocks[idx].code, sc.durationSec),
-                      sc.durationSec
-                    ),
+                    durationSec: inferSceneDurationFromCode(blocks[idx].code, sc.durationSec),
                   }
                 : sc
             )

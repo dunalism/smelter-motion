@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AspectRatio, PaletteId, ProjectState, SceneItem, SeoMetadata } from '../types/studio';
 import { sanitizeSeoMetadata } from '../engine/seoPrompt';
 import {
-  clampSceneDuration,
+  estimateNarrationDurationSec,
   formatTimecode,
   getStylePreset,
   getTotalDuration,
@@ -81,7 +81,7 @@ export function IdeStep({
 
   const handlePreviewActiveStyle = () => {
     const preset = getStylePreset(paletteId);
-    const inferred = clampSceneDuration(inferSceneDurationFromCode(preset.sampleCode, 3.6), 3.6);
+    const inferred = inferSceneDurationFromCode(preset.sampleCode, 3.6);
     onUpdateProject((prev) => ({
       ...prev,
       paletteId,
@@ -146,7 +146,10 @@ export function IdeStep({
           emphasis: typeof sc.emphasis === 'string' ? sc.emphasis.trim() : '',
           visualBrief: String(sc.visualBrief || ''),
           cameraHint: String(sc.cameraHint || ''),
-          durationSec: clampSceneDuration(Math.max(1.5, Number(sc.durationSec) || 3.5), 3.5),
+          durationSec: Math.max(
+            1.2,
+            Number(sc.durationSec) || estimateNarrationDurationSec(String(sc.narration || ''))
+          ),
           code: String(sc.code || ''),
           audio: { sourceType: 'none' },
         })

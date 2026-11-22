@@ -290,15 +290,36 @@ export function splitMultiSceneCode(rawCode: string): ParsedSceneBlock[] {
   return blocks;
 }
 
-export const MIN_SCENE_DURATION_SEC = 0.5;
-export const MAX_SCENE_DURATION_SEC = 4;
+export function estimateNarrationDurationSec(
+  narration: string,
+  fallback: number = 3.5
+): number {
+  const words = narration.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return fallback;
 
-export function clampSceneDuration(sec: number, fallback: number = 3.5): number {
-  const val = Number.isFinite(sec) ? sec : fallback;
-  return Number(clamp(val, MIN_SCENE_DURATION_SEC, MAX_SCENE_DURATION_SEC).toFixed(2));
+  let totalSyllables = 0;
+  let pauseSec = 0;
+
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const clean = w.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+    const vowelGroups = clean.match(/[aeiouyàáâäèéêëìíîïòóôöùúûü]+/gi);
+    const syllables = Math.max(1, vowelGroups ? vowelGroups.length : Math.ceil(clean.length / 3));
+    totalSyllables += syllables;
+
+    if (i < words.length - 1) {
+      if (/[.!?…]+["'”’)]*$/.test(w)) pauseSec += 0.35;
+      else if (/[,;:]+["'”’)]*$/.test(w)) pauseSec += 0.18;
+      else if (/[—–-]+$/.test(w)) pauseSec += 0.12;
+    }
+  }
+
+  // Natural Indonesian voiceover pace: ~4.7 syllables/sec + 0.45s lead-in/tail-out buffer
+  const estimated = totalSyllables * 0.21 + pauseSec + 0.45;
+  return Number(clamp(estimated, 1.5, 20).toFixed(1));
 }
 
-export function inferSceneDurationFromCode(code: string, fallbackSec: number = 4): number {
+export function inferSceneDurationFromCode(code: string, fallbackSec: number = 4.5): number {
   const camMatch = code.match(/s\.kamera\s*\(\s*\[([\s\S]*?)\]\s*\)/);
   if (!camMatch) return fallbackSec;
 
@@ -401,11 +422,10 @@ export function buildPromptForScene(
   aspectRatio: AspectRatio
 ): string {
   const dims = getCanvasDimensions(aspectRatio);
-  const clampedDur = clampSceneDuration(scene.durationSec);
   return `Buatkan kode animasi motion graphics JavaScript Canvas untuk SCENE ${scene.index + 1} dengan aturan berikut:
 
 Judul Scene: ${scene.title}
-Durasi Scene: ${clampedDur.toFixed(2)} detik (WAJIB maksimal 4.00 detik)
+Durasi Scene: ${scene.durationSec.toFixed(2)} detik
 Narasi Voiceover: "${scene.narration}"
 Arahan Visual: ${scene.visualBrief}
 Arahan Kamera: ${scene.cameraHint}
@@ -415,7 +435,7 @@ ${buildDSLSpecification(palette, dims)}
 ATURAN OUTPUT:
 1. Awali kode dengan komentar persis: // ===== SCENE ${scene.index + 1} =====
 2. Gunakan hanya JavaScript murni dan API \`s.*\` / \`ctx\` di atas (tanpa import/export atau wrapper function).
-3. Pastikan timestamp terakhir pada \`s.kamera([...])\` mendekati ${clampedDur.toFixed(2)} detik (maksimal 4.00 detik).
+3. Pastikan timestamp terakhir pada \`s.kamera([...])\` mendekati ${scene.durationSec.toFixed(2)} detik.
 4. Ikuti dengan ketat KARTU GAYA & NUANSA AKTIF di atas (termasuk aturan warna, tipografi, gerak, dan wajib faceless bila ada tokoh/orang).`;
 }
 
@@ -429,7 +449,7 @@ export function buildMasterPrompt(
   const sceneSpecs = scenes
     .map(
       (sc, idx) =>
-        `SCENE ${idx + 1} (${clampSceneDuration(sc.durationSec).toFixed(2)} detik) — ${sc.title}
+        `SCENE ${idx + 1} (${sc.durationSec.toFixed(2)} detik) — ${sc.title}
 - Narasi: "${sc.narration}"
 - Visual: ${sc.visualBrief}
 - Kamera: ${sc.cameraHint}`

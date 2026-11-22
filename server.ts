@@ -18,6 +18,7 @@ import {
   SEO_SYSTEM_INSTRUCTION,
 } from './src/engine/seoPrompt';
 import { resolveTtsModel, resolveVoiceName } from './src/data/ttsVoices';
+import { estimateNarrationDurationSec } from './src/engine/motionMath';
 import { buildFfmpegMp4Args, isMp4Buffer } from './src/engine/mp4ExportHelpers';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -318,15 +319,23 @@ app.post('/api/generate-script', async (req, res) => {
       scenes?: Array<Record<string, unknown>>;
     }>(response.text ?? '{}');
     if (Array.isArray(parsed.scenes)) {
-      parsed.scenes = parsed.scenes.map((sc) => ({
-        ...sc,
-        durationSec: Math.min(4, Math.max(0.5, Number(sc.durationSec) || 3.5)),
-        emphasis: typeof sc.emphasis === 'string' ? sc.emphasis.trim() : '',
-        code:
-          typeof sc.code === 'string'
-            ? sc.code.replace(/^(\/\/\s*=+\s*SCENE\s*\d+\s*=+)[ \t]+(?=\S)/i, '$1\n')
-            : '',
-      }));
+      parsed.scenes = parsed.scenes.map((sc) => {
+        const narrationStr = typeof sc.narration === 'string' ? sc.narration : '';
+        const rawDur = Number(sc.durationSec);
+        const naturalDur = estimateNarrationDurationSec(narrationStr, 3.5);
+        return {
+          ...sc,
+          durationSec:
+            Number.isFinite(rawDur) && rawDur >= 1.2
+              ? Math.min(20, rawDur)
+              : naturalDur,
+          emphasis: typeof sc.emphasis === 'string' ? sc.emphasis.trim() : '',
+          code:
+            typeof sc.code === 'string'
+              ? sc.code.replace(/^(\/\/\s*=+\s*SCENE\s*\d+\s*=+)[ \t]+(?=\S)/i, '$1\n')
+              : '',
+        };
+      });
     }
     if (parsed.seo) {
       parsed.seo = sanitizeSeoMetadata(parsed.seo) as unknown as Record<string, unknown>;
