@@ -758,6 +758,14 @@ export const DEMO_PROJECT: ProjectState = {
     position: 'bottom',
     style: 'kotak_gelap',
   },
+  watermark: {
+    enabled: false,
+    platforms: ['instagram'],
+    position: 'bottom-left',
+    opacity: 0.65,
+    scale: 1,
+    text: '',
+  },
   scenes: [
     {
       id: 'scene-4',

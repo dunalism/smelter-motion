@@ -17,6 +17,7 @@ import { triggerSfxAt } from '../engine/sfxSynthesizer';
 import { preloadProjectAudioTimings } from '../engine/wordTiming';
 import { ApiRequestError, postJson } from '../utils/api';
 import { SubtitleStudioModal } from './SubtitleStudioModal';
+import { WatermarkModal } from './WatermarkModal';
 import {
   Check,
   Code2,
@@ -32,6 +33,7 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Sparkles,
+  Stamp,
   Volume2,
   VolumeX,
   Captions,
@@ -65,6 +67,7 @@ export function AnimasiStep({
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSubtitleStudioOpen, setIsSubtitleStudioOpen] = useState(false);
+  const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
 
   const previewContainerRef = useRef<HTMLElement | null>(null);
 
@@ -223,11 +226,12 @@ export function AnimasiStep({
       narration: resolved.scene?.narration,
       emphasis: resolved.scene?.emphasis,
       subtitles: project.subtitles,
+      watermark: project.watermark,
       audioDataUrl: resolved.scene?.audio.dataUrl,
       audioDurationSec: resolved.scene?.audio.durationSec,
     });
     setRuntimeError(err);
-  }, [currentTime, project.scenes, project.subtitles, palette, dims.width, dims.height, compiledAll]);
+  }, [currentTime, project.scenes, project.subtitles, project.watermark, palette, dims.width, dims.height, compiledAll]);
 
   // AudioContext helper for live SFX playback
   const ensureAudioCtx = () => {
@@ -943,6 +947,26 @@ export function AnimasiStep({
 
                 <button
                   type="button"
+                  onClick={() => setIsWatermarkModalOpen(true)}
+                  aria-label="Pengaturan Watermark"
+                  title="Watermark Logo Sosial Media"
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs ${
+                    project.watermark?.enabled && (project.watermark.platforms?.length ?? 0) > 0
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                      : 'border-[#2B364B] bg-[#182030] text-slate-200 hover:text-sky-300 hover:border-sky-500/40'
+                  }`}
+                >
+                  <Stamp className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Watermark</span>
+                  {project.watermark?.enabled && (project.watermark.platforms?.length ?? 0) > 0 && (
+                    <span className="font-mono text-[10px] px-1 rounded bg-emerald-500/20">
+                      {project.watermark.platforms.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleToggleFullscreen}
                   aria-label={isFullscreen ? 'Keluar dari layar penuh' : 'Mode layar penuh'}
                   title={isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh'}
@@ -967,6 +991,14 @@ export function AnimasiStep({
       <SubtitleStudioModal
         isOpen={isSubtitleStudioOpen}
         onClose={() => setIsSubtitleStudioOpen(false)}
+        project={project}
+        palette={palette}
+        onUpdateProject={onUpdateProject}
+      />
+
+      <WatermarkModal
+        isOpen={isWatermarkModalOpen}
+        onClose={() => setIsWatermarkModalOpen(false)}
         project={project}
         palette={palette}
         onUpdateProject={onUpdateProject}

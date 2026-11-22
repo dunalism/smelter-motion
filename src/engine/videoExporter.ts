@@ -320,6 +320,7 @@ async function tryExportWithWebCodecsMp4(params: {
         narration: resolved.scene?.narration,
         emphasis: resolved.scene?.emphasis,
         subtitles: project.subtitles,
+        watermark: project.watermark,
         audioDataUrl: resolved.scene?.audio.dataUrl,
         audioDurationSec: resolved.scene?.audio.durationSec,
       });
@@ -554,6 +555,7 @@ async function exportWithMediaRecorderAndFfmpeg(params: {
         narration: resolved.scene?.narration,
         emphasis: resolved.scene?.emphasis,
         subtitles: project.subtitles,
+        watermark: project.watermark,
         audioDataUrl: resolved.scene?.audio.dataUrl,
         audioDurationSec: resolved.scene?.audio.durationSec,
       });

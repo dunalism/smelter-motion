@@ -1,8 +1,14 @@
-import type { PalettePreset, SfxCall, SubtitleSettings } from '../types/studio';
+import type {
+  PalettePreset,
+  SfxCall,
+  SubtitleSettings,
+  WatermarkSettings,
+} from '../types/studio';
 import {
   findEmphasisRanges,
   renderSubtitleOverlay,
 } from './subtitleRenderer';
+import { renderWatermarkOverlay } from './watermarkRenderer';
 export { findEmphasisRanges };
 import {
   at,
@@ -383,6 +389,7 @@ export interface RenderFrameOptions {
   narration?: string;
   emphasis?: string;
   subtitles?: SubtitleSettings;
+  watermark?: WatermarkSettings;
   audioDataUrl?: string;
   audioDurationSec?: number;
 }
@@ -398,6 +405,7 @@ export function renderSceneFrame({
   narration,
   emphasis,
   subtitles,
+  watermark,
   audioDataUrl,
   audioDurationSec,
 }: RenderFrameOptions): string | null {
@@ -1130,6 +1138,16 @@ export function renderSceneFrame({
       palette,
       audioDataUrl,
       audioDurationSec,
+    });
+  }
+
+  if (watermark?.enabled && watermark.platforms.length > 0) {
+    renderWatermarkOverlay({
+      ctx,
+      width,
+      height,
+      watermark,
+      palette,
     });
   }
 

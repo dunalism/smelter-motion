@@ -99,6 +99,19 @@ export interface SubtitleSettings {
   accentColor?: string;
 }
 
+export type WatermarkPlatform = 'instagram' | 'youtube' | 'tiktok' | 'facebook';
+
+export type WatermarkPosition = 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right';
+
+export interface WatermarkSettings {
+  enabled: boolean;
+  platforms: WatermarkPlatform[];
+  position: WatermarkPosition;
+  opacity: number;
+  scale: number;
+  text?: string;
+}
+
 export interface ProjectState {
   title: string;
   topic: string;
@@ -107,6 +120,7 @@ export interface ProjectState {
   aspectRatio: AspectRatio;
   paletteId: PaletteId;
   subtitles: SubtitleSettings;
+  watermark?: WatermarkSettings;
   masterAudioUrl?: string;
   masterAudioName?: string;
   masterAudioDurationSec?: number;
