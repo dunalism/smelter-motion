@@ -1,49 +1,50 @@
 # GerakCanvas (smelter-motion) — Project Context
 
-Read this file first instead of scanning the repo. Use `search_codebase` or targeted line-range `read_files` before opening large files.
+Jika file ini bertentangan dengan kode, percayai kode lalu perbaiki file ini.
 
-## Stack & Runtime
-- **App:** GerakCanvas — JavaScript Canvas motion video studio (Ide → Narasi → Suara → Animasi → Export MP4).
-- **Frontend:** React 19, Vite 8, Tailwind CSS v4 (`@tailwindcss/vite`), Lucide icons, `motion`, `mp4-muxer`.
-- **Backend:** Express 4 (`server.ts`) serving Vite middleware (dev) or `dist/` (prod) + `/api/*` routes.
-- **AI:** `@google/genai` (BYOK via `X-Gemini-Api-Key` header).
-- **Alias:** `@/*` → `./*` (`tsconfig.json`, `vite.config.ts`).
-- **UI Language:** Indonesian (`id`).
+## Ringkasan
+
+GerakCanvas adalah studio video motion berbasis JavaScript Canvas yang berjalan di browser dengan backend Express untuk integrasi Gemini AI dan fallback transcode MP4. Alur kerja studio terdiri dari 4 tahap utama: Ide → Narasi → Suara → Animasi, lalu Export MP4.
+
+## Stack
+
+Bun, React 19, Vite 8, Tailwind CSS v4, Express 4, `@google/genai`, `mp4-muxer`, FFmpeg (opsional untuk fallback).
 
 ## Commands
-- Dev server: `bun run dev` (`bun server.ts`)
-- Build: `bun run build` (`vite build`)
-- Typecheck: `bun run lint` (`tsc --noEmit`)
-- Tests: `bun test` (49 tests across 10 `*.test.ts` files, ~170ms)
 
-## Architecture & Data Flow
-1. **State (`src/App.tsx`):** Single `ProjectState` (`useState`, initialized from `DEMO_PROJECT`), passed via `(project, onUpdateProject)` to step components (`ide` | `narasi` | `suara` | `animasi`) + `ExportModal` + `ApiKeyModal`.
-2. **BYOK API Key:** Stored in `src/utils/apiKeyVault.ts`, attached as `X-Gemini-Api-Key` by `postJson()` (`src/utils/api.ts`), validated on server by `requireUserGeminiClient()` (`server.ts`), redacted via `redactApiKeySecrets()` (`src/utils/apiKeyRules.ts`).
-3. **API Endpoints (`server.ts`):**
-   - `POST /api/verify-gemini-key`
-   - `POST /api/generate-script`
-   - `POST /api/generate-seo`
-   - `POST /api/generate-tts`
-   - `POST /api/generate-scene-code`
-   - `POST /api/convert-mp4` (FFmpeg `libx264` + `yuv420p` transcode fallback)
-   - Unmatched `/api/*` always returns JSON (`404`/`500`), never HTML.
+- `bun run dev` (`bun server.ts`) · `bun run build` (`vite build`) · `bun run lint` (`tsc --noEmit`) · `bun test`
 
-## File Map
-- `src/types/studio.ts` — All core types: `ProjectState` (includes `subtitles`, `watermark?`, `scenes`, `seo?`), `SceneItem`, `SceneAudio`, `SeoMetadata`, `PaletteId` (11), `VideoStylePreset`, `SubtitleSettings` (`enabled`, `fontSize`, `position`, `style`, `accentColor`), `SubtitleStyle` (15 curated IDs: `tulisan_tangan`, `mesin_ketik`, `sorot_kata`, `stiker_kertas`, `pop_tebal`, `karaoke`, `kotak_putih`, `kotak_gelap`, `glitch`, `panduan_atas`, `elegan_atas`, `satu_kata`, `neon`, `kartu_selotip`, `garis_bawah`), `WatermarkSettings` (`enabled`, `platforms`, `position`, `opacity`, `scale`, `text?`), `WatermarkPlatform` (`instagram` | `youtube` | `tiktok` | `facebook`), `WatermarkPosition` (`bottom-left` | `bottom-right` | `top-left` | `top-right`).
-- `src/components/` — `TopBar.tsx`, `IdeStep.tsx`, `NarasiStep.tsx`, `SuaraStep.tsx` (TTS generation + free browser `voicePreview` sample), `AnimasiStep.tsx` (preloads audio word timings, triggers `SubtitleStudioModal` & `WatermarkModal`), `ExportModal.tsx`, `ApiKeyModal.tsx`, `SeoPanel.tsx`, `SubtitleStudioModal.tsx`, `WatermarkModal.tsx`.
-- `src/engine/canvasRenderer.ts` — `compileSceneCode()`, `renderSceneFrame()` (renders scene + subtitle + watermark overlays). Exposes `MotionSceneContext` (`s`): `t`, `width`, `height`, `kamera`, `sfx`, `group`, `line`, `polyline`, `rect`, `circle`, `ellipse`, `arc`, `box3d`, `text`, `text3d`, `sparkle`, `burst`, Belah Warna helpers (`field`, `side`, `both`, `slab`, `disc`, `word`), math (`spring`, `stagger`, `keys`, `wave`, `at`, `lerp`, `rand`, `ease`).
-- `src/engine/motionMath.ts` — `spring`, `ease`, `stagger`, `keys`, `evaluateCamera`, `splitMultiSceneCode`, `inferSceneDurationFromCode`, `resolveSceneAtTime`.
-- `src/engine/wordTiming.ts` — Audio-to-subtitle word-level sync: `getWordTimings()` (sync cache + WAV PCM decode via `decodeWavPcmSamples()`/`alignWordsToPcm()`, fallback `computeSmartWordTimings()`), `ensureAudioWordTimings()` & `preloadProjectAudioTimings()` (async decode for MP3/WebM/OGG/URL).
-- `src/engine/subtitleRenderer.ts`, `subtitleConfig.ts`, `subtitleStylesData.ts` — 15 curated subtitle styles (+ `LEGACY_STYLE_FALLBACK`), `resolveSubtitleConfig()`, `renderSubtitleOverlay()` (synced via `getWordTimings()` with `audioDataUrl` & `audioDurationSec`), `renderSubtitlePreviewFrame()`, `extractAutoEmphasisKeywords()`.
-- `src/engine/watermarkRenderer.ts` — Social media corner-safe watermark overlay: `WATERMARK_PLATFORMS`, `DEFAULT_WATERMARK_SETTINGS`, `normalizeWatermarkSettings()`, `computeWatermarkLayout()`, `renderWatermarkOverlay()`, `renderWatermarkPreviewFrame()`.
-- `src/engine/videoExporter.ts`, `mp4ExportHelpers.ts` — WebCodecs H.264 + `mp4-muxer` export (calls `preloadProjectAudioTimings()` before render, passes `watermark` & `subtitles` to `renderSceneFrame()`); MediaRecorder + `/api/convert-mp4` fallback.
-- `src/engine/sfxSynthesizer.ts` — Procedural Web Audio SFX.
-- `src/engine/scriptPrompt.ts`, `seoPrompt.ts` — Gemini prompt builders & metadata sanitizers.
-- `src/data/videoStyles.ts` (11 presets), `ttsVoices.ts` (TTS models + voices), `demoProject.ts`.
-- `src/utils/api.ts` (`postJson`, `ApiRequestError`), `apiKeyRules.ts`, `apiKeyVault.ts`, `voicePreview.ts` (`speakVoiceSample()`, `stopVoiceSample()`, `getVoicePreviewTuning()`, `pickBrowserSpeechVoice()` — zero-token Web Speech API preview for `SuaraStep`).
+## Arsitektur
 
-## Conventions & Guardrails
-- **Theme:** Dark canvas `#0B0E14`, text `#E6ECF5`, fonts `Outfit` (display), `DM Sans` (sans), `JetBrains Mono` (mono) in `index.html` & `src/index.css`.
-- **Vite (`vite.config.ts`):** Keep `DISABLE_HMR` check and `copy-unbundled-src-assets` plugin intact.
-- **Large files (avoid full-file reads; use `search_codebase` or line ranges):** `server.ts` (~686L), `src/data/demoProject.ts`, `src/data/videoStyles.ts`, `src/engine/subtitleStylesData.ts`, `src/engine/subtitleRenderer.ts`, `src/engine/videoExporter.ts`.
-- **Verification:** Run `bun run lint` and `bun test` after code changes.
+- State tunggal `ProjectState` dikelola di `src/App.tsx` dan dioper via props ke tiap tahap dan modal.
+- Alur BYOK API key: disimpan di vault klien (`apiKeyVault`) → dikirim lewat header `X-Gemini-Api-Key` oleh `postJson()` → divalidasi `requireUserGeminiClient()` di `server.ts` → secret disaring oleh `redactApiKeySecrets()`.
+- Pipeline render per frame (`renderSceneFrame`): scene canvas → subtitle overlay → watermark overlay.
+- Ekspor MP4: WebCodecs H.264 + `mp4-muxer` (utama), fallback ke MediaRecorder + `POST /api/convert-mp4`.
+- Semua route `/api/*` yang tidak cocok atau error middleware wajib mengembalikan JSON, bukan HTML.
+
+## Struktur Singkat
+
+`src/components/` berisi UI per tahap dan modal; `src/engine/` menangani kompilasi/render Canvas, math animasi, sinkronisasi kata-audio, subtitle, watermark, SFX, prompt AI, dan ekspor video; `src/data/` menyimpan preset gaya, suara TTS, dan proyek demo; `src/utils/` berisi helper API, vault key, dan preview suara browser.
+
+## Keputusan & Alasan
+
+- API key Gemini dikelola klien (BYOK) lewat header per request, tidak disimpan di server `[alasan: perlu konfirmasi]`.
+- Preview contoh suara memakai Web Speech API browser (`voicePreview`) tanpa memanggil `/api/generate-tts` agar gratis tanpa memakan token/kuota API.
+- Sinkronisasi kata-audio memisahkan decode WAV sinkron dan decode non-WAV (MP3/WebM/OGG/URL) asinkron karena `renderSceneFrame()` berjalan sinkron per frame.
+- ID style subtitle lama dipertahankan lewat fallback mapping agar proyek/preset lama tidak rusak `[alasan: perlu konfirmasi]`.
+
+## Jebakan
+
+- `preloadProjectAudioTimings()` wajib dipanggil sebelum render sinkron (ekspor dan `AnimasiStep`); jika tidak, subtitle non-WAV tidak sinkron dengan suara tanpa error.
+- Mengubah kontrak `MotionSceneContext` (`s`) memengaruhi preset bawaan dan prompt generator scene AI. Perbarui keduanya bersamaan.
+
+## Konvensi & Guardrails
+
+- UI & pesan error berbahasa Indonesia; tema gelap `#0B0E14`, teks `#E6ECF5`, font `Outfit`, `DM Sans`, `JetBrains Mono`.
+- `vite.config.ts`: jangan ubah guard `DISABLE_HMR` dan plugin `copy-unbundled-src-assets`.
+- File besar (jangan baca utuh, pakai `search_codebase` atau line-range): `server.ts`, `src/data/demoProject.ts`, `src/data/videoStyles.ts`, `src/engine/subtitleStylesData.ts`, `src/engine/subtitleRenderer.ts`, `src/engine/videoExporter.ts`.
+- Jalankan `bun run lint` dan `bun test` setelah mengubah kode.
+
+## Status / Ditunda
+
+- Belum ada catatan tugas aktif atau fitur yang ditunda.
