@@ -4,6 +4,7 @@ import {
   at,
   buildMasterPrompt,
   buildPromptForScene,
+  clampSceneDuration,
   ease,
   evaluateCamera,
   formatTimecode,
@@ -11,6 +12,7 @@ import {
   inferSceneDurationFromCode,
   keys,
   lerp,
+  MAX_SCENE_DURATION_SEC,
   PALETTE_PRESETS,
   rand,
   resolveSceneAtTime,
@@ -132,6 +134,15 @@ test('inferSceneDurationFromCode extracts max camera keyframe timestamp', () => 
   const code = `s.kamera([[0, 360, 620, 1], [2.35, 360, 445, 1.12], [4.16, 360, 445, 1.12]]);`;
   assert.equal(inferSceneDurationFromCode(code, 5), 4.16);
   assert.equal(inferSceneDurationFromCode(`s.circle(10, 10, 5);`, 5), 5);
+});
+
+test('clampSceneDuration enforces mandatory 0.5s..4s scene duration cap', () => {
+  assert.equal(MAX_SCENE_DURATION_SEC, 4);
+  assert.equal(clampSceneDuration(6.5), 4);
+  assert.equal(clampSceneDuration(4.01), 4);
+  assert.equal(clampSceneDuration(3.25), 3.25);
+  assert.equal(clampSceneDuration(0.1), 0.5);
+  assert.equal(clampSceneDuration(Number.NaN, 3.2), 3.2);
 });
 
 test('resolveSceneAtTime maps global time to local scene time', () => {

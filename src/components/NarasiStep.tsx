@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ProjectState, SceneItem } from '../types/studio';
-import { formatTimecode, getTotalDuration, PALETTE_PRESETS } from '../engine/motionMath';
+import { clampSceneDuration, formatTimecode, getTotalDuration, PALETTE_PRESETS } from '../engine/motionMath';
 import {
   extractAutoEmphasisKeywords,
   resolveSubtitleConfig,
@@ -187,19 +187,20 @@ export function NarasiStep({
                     <label
                       htmlFor={`dur-${scene.id}`}
                       className="text-xs text-slate-400"
+                      title="Durasi maksimal 4 detik per scene"
                     >
-                      Durasi (dtk)
+                      Durasi (maks 4 dtk)
                     </label>
                     <input
                       id={`dur-${scene.id}`}
                       type="number"
                       step="0.1"
                       min="0.5"
-                      max="60"
+                      max="4"
                       value={scene.durationSec}
                       onChange={(e) =>
                         updateScene(scene.id, {
-                          durationSec: Math.max(0.5, Number(e.target.value) || 1),
+                          durationSec: clampSceneDuration(Number(e.target.value) || 1, 1),
                         })
                       }
                       className="w-20 bg-[#0B0E14] border border-[#263042] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white text-right tabular-nums focus:outline-none focus:border-sky-500"

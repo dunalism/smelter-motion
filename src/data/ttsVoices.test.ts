@@ -63,3 +63,20 @@ test('buildScriptGenerationPrompt enforces natural narration rules and removes c
   assert.ok(prompt.includes('Rehook'));
   assert.equal(prompt.includes('8-18 kata'), false);
 });
+
+test('buildScriptGenerationPrompt enforces max 4.0s per scene and auto-calculates scene count when omitted', () => {
+  const prompt = buildScriptGenerationPrompt({
+    topic: 'Kenapa susah fokus pagi hari',
+    styleTone: 'Storytelling Santai & Mengalir',
+    styleName: 'Modern Flat',
+    styleNuance: 'Energik',
+    styleCardPrompt: 'Gaya flat bersih',
+    targetDurationSec: 25,
+    aspectRatio: '9:16',
+    dims: '720x1280',
+    paletteColors: { bg: '#ffffff', primary: '#4f6bff' },
+  });
+
+  assert.ok(prompt.includes('maksimal 4.0 detik'));
+  assert.ok(prompt.includes('minimal 7 scene'));
+});

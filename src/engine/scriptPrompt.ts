@@ -7,7 +7,7 @@ export interface ScriptPromptInput {
   styleNuance: string;
   styleCardPrompt: string;
   targetDurationSec: number;
-  sceneCount: number;
+  sceneCount?: number;
   aspectRatio: string;
   dims: string;
   paletteColors: {
@@ -55,7 +55,12 @@ Nuansa: ${input.styleNuance || input.styleTone}
 ${input.styleCardPrompt}`
     : `Gaya & Nada: ${input.styleTone}`;
 
-  const hookMaxSec = Math.max(1.5, Number((input.targetDurationSec * 0.1).toFixed(1)));
+  const hookMaxSec = Math.min(4, Math.max(1.5, Number((input.targetDurationSec * 0.1).toFixed(1))));
+  const minSceneCount = Math.max(1, Math.ceil(input.targetDurationSec / 4));
+  const recommendedSceneCount =
+    input.sceneCount && input.sceneCount >= minSceneCount
+      ? input.sceneCount
+      : Math.max(minSceneCount, Math.round(input.targetDurationSec / 3.2));
 
   return `Kamu adalah sutradara & penulis skrip video motion graphics pendek berbahasa Indonesia.
 Buatkan rancangan skrip video motion yang menarik, padat, dan memikat untuk topik:
@@ -63,7 +68,8 @@ Buatkan rancangan skrip video motion yang menarik, padat, dan memikat untuk topi
 
 ${styleSection}
 Gaya Penyampaian Tambahan: ${input.styleTone} (tetap patuhi bahasa lisan natural di bawah, jangan berubah jadi bahasa baku/AI).
-Target Durasi Total: sekitar ${input.targetDurationSec} detik dibagi menjadi ${input.sceneCount} scene.
+Target Durasi Total: sekitar ${input.targetDurationSec} detik, dibagi otomatis menjadi sekitar ${recommendedSceneCount} scene (minimal ${minSceneCount} scene).
+ATURAN WAJIB DURASI SCENE: Setiap scene WAJIB berdurasi maksimal 4.0 detik (rentang 1.5 - 4.0 detik, DILARANG keras membuat scene lebih dari 4.0 detik). Pecah penjelasan ke jumlah scene yang cukup agar setiap scene tetap padat dan berdurasi <= 4.0 detik.
 Dimensi Canvas: ${input.dims} (${input.aspectRatio}). Latar Kanvas: "${input.paletteColors.bg || '#060913'}", Primary: "${input.paletteColors.primary || '#29e7ff'}", Secondary: "${input.paletteColors.secondary || '#b26bff'}", Accent: "${input.paletteColors.accent || '#ff3fd1'}", Text: "${input.paletteColors.text || '#ffffff'}".
 
 ${NARRATION_WRITING_RULES}
@@ -74,7 +80,7 @@ Untuk setiap scene, buat:
 3. emphasis: 1-2 kata kunci terpenting dari \`narration\` scene ini yang paling ingin ditegaskan (harus persis ada di dalam teks \`narration\`, mis. "overthinking" atau "mulai dulu"). Kata ini akan otomatis digarisbawahi pada subtitle.
 4. visualBrief: Deskripsi detail objek grafis, ilustrasi/tipografi, kata kunci visual singkat (1-3 kata saja, BUKAN kalimat narasi/subtitle), dan animasi yang terjadi sesuai kartu gaya di atas. (Bila ada tokoh/orang, wajib faceless: tanpa mata, alis, hidung, mulut, atau ekspresi wajah).
 5. cameraHint: Arahan gerakan kamera (pan/zoom) yang lembut dan tetap terpusat (zoom 0.94-1.05) agar tidak ada objek atau kata yang terpotong di tepi layar.
-6. durationSec: Durasi scene dalam detik. Scene 1 (Hook) singkat sekitar ${hookMaxSec} detik (maks ~10% total durasi), scene terakhir minimal 2.0 detik agar ajakan penutup sempat terbaca, dan total seluruh scene mendekati ${input.targetDurationSec} detik.
+6. durationSec: Durasi scene dalam detik. WAJIB maksimal 4.0 detik per scene (rentang 1.5 - 4.0 detik, DILARANG > 4.0 detik). Scene 1 (Hook) singkat sekitar ${hookMaxSec} detik (maks ~10% total durasi, maks 4.0 detik), scene terakhir minimal 2.0 detik dan maksimal 4.0 detik agar ajakan penutup sempat terbaca, dan total seluruh scene mendekati ${input.targetDurationSec} detik.
 7. code: Kode JavaScript Canvas Motion DSL siap jalan yang menggambar visualBrief scene ini menggunakan API objek \`s\` (dan \`ctx\`):
    - ATURAN WAJIB ANTI-TERPOTONG (SEMUA GAYA): Tempatkan semua objek & teks di area aman (x antara 8%..92% lebar kanvas, y antara 10%..76% tinggi kanvas). Gunakan \`s.kamera\` dengan \`zoom\` aman \`0.94..1.05\` dan fokus dekat pusat kanvas agar TIDAK ADA kata, huruf, atau objek yang terpotong!
    - ATURAN WAJIB ANTI-SUBTITLE-GANDA (SEMUA GAYA): Sistem sudah merender subtitle otomatis di area bawah (y >= 78% tinggi kanvas). DILARANG KERAS menggambar subtitle, teks narasi lengkap, atau kotak/kapsul subtitle sendiri di dalam \`code\` pada gaya apa pun! Teks dalam \`code\` hanya untuk label/kata kunci visual singkat (1-3 kata).

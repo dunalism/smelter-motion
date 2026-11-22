@@ -290,7 +290,15 @@ export function splitMultiSceneCode(rawCode: string): ParsedSceneBlock[] {
   return blocks;
 }
 
-export function inferSceneDurationFromCode(code: string, fallbackSec: number = 4.5): number {
+export const MIN_SCENE_DURATION_SEC = 0.5;
+export const MAX_SCENE_DURATION_SEC = 4;
+
+export function clampSceneDuration(sec: number, fallback: number = 3.5): number {
+  const val = Number.isFinite(sec) ? sec : fallback;
+  return Number(clamp(val, MIN_SCENE_DURATION_SEC, MAX_SCENE_DURATION_SEC).toFixed(2));
+}
+
+export function inferSceneDurationFromCode(code: string, fallbackSec: number = 4): number {
   const camMatch = code.match(/s\.kamera\s*\(\s*\[([\s\S]*?)\]\s*\)/);
   if (!camMatch) return fallbackSec;
 
@@ -393,10 +401,11 @@ export function buildPromptForScene(
   aspectRatio: AspectRatio
 ): string {
   const dims = getCanvasDimensions(aspectRatio);
+  const clampedDur = clampSceneDuration(scene.durationSec);
   return `Buatkan kode animasi motion graphics JavaScript Canvas untuk SCENE ${scene.index + 1} dengan aturan berikut:
 
 Judul Scene: ${scene.title}
-Durasi Scene: ${scene.durationSec.toFixed(2)} detik
+Durasi Scene: ${clampedDur.toFixed(2)} detik (WAJIB maksimal 4.00 detik)
 Narasi Voiceover: "${scene.narration}"
 Arahan Visual: ${scene.visualBrief}
 Arahan Kamera: ${scene.cameraHint}
@@ -406,7 +415,7 @@ ${buildDSLSpecification(palette, dims)}
 ATURAN OUTPUT:
 1. Awali kode dengan komentar persis: // ===== SCENE ${scene.index + 1} =====
 2. Gunakan hanya JavaScript murni dan API \`s.*\` / \`ctx\` di atas (tanpa import/export atau wrapper function).
-3. Pastikan timestamp terakhir pada \`s.kamera([...])\` mendekati ${scene.durationSec.toFixed(2)} detik.
+3. Pastikan timestamp terakhir pada \`s.kamera([...])\` mendekati ${clampedDur.toFixed(2)} detik (maksimal 4.00 detik).
 4. Ikuti dengan ketat KARTU GAYA & NUANSA AKTIF di atas (termasuk aturan warna, tipografi, gerak, dan wajib faceless bila ada tokoh/orang).`;
 }
 
@@ -420,7 +429,7 @@ export function buildMasterPrompt(
   const sceneSpecs = scenes
     .map(
       (sc, idx) =>
-        `SCENE ${idx + 1} (${sc.durationSec.toFixed(2)} detik) — ${sc.title}
+        `SCENE ${idx + 1} (${clampSceneDuration(sc.durationSec).toFixed(2)} detik) — ${sc.title}
 - Narasi: "${sc.narration}"
 - Visual: ${sc.visualBrief}
 - Kamera: ${sc.cameraHint}`

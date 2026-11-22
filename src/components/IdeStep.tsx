@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AspectRatio, PaletteId, ProjectState, SceneItem, SeoMetadata } from '../types/studio';
 import { sanitizeSeoMetadata } from '../engine/seoPrompt';
 import {
+  clampSceneDuration,
   formatTimecode,
   getStylePreset,
   getTotalDuration,
@@ -46,7 +47,6 @@ export function IdeStep({
   const [topicInput, setTopicInput] = useState(project.topic);
   const [styleTone, setStyleTone] = useState(project.styleTone);
   const [targetDuration, setTargetDuration] = useState<number>(project.targetDurationSec || 25);
-  const [sceneCount, setSceneCount] = useState<number>(Math.max(3, Math.min(7, project.scenes.length || 4)));
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(project.aspectRatio);
   const [paletteId, setPaletteId] = useState<PaletteId>(project.paletteId);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -81,7 +81,7 @@ export function IdeStep({
 
   const handlePreviewActiveStyle = () => {
     const preset = getStylePreset(paletteId);
-    const inferred = inferSceneDurationFromCode(preset.sampleCode, 3.6);
+    const inferred = clampSceneDuration(inferSceneDurationFromCode(preset.sampleCode, 3.6), 3.6);
     onUpdateProject((prev) => ({
       ...prev,
       paletteId,
@@ -127,7 +127,6 @@ export function IdeStep({
         styleNuance: activeStyle.nuance,
         styleCardPrompt: activeStyle.animationCardPrompt,
         targetDurationSec: targetDuration,
-        sceneCount,
         aspectRatio,
         paletteColors: {
           bg: activePalette.bg,
@@ -147,7 +146,7 @@ export function IdeStep({
           emphasis: typeof sc.emphasis === 'string' ? sc.emphasis.trim() : '',
           visualBrief: String(sc.visualBrief || ''),
           cameraHint: String(sc.cameraHint || ''),
-          durationSec: Math.max(1.5, Number(sc.durationSec) || 4.5),
+          durationSec: clampSceneDuration(Math.max(1.5, Number(sc.durationSec) || 3.5), 3.5),
           code: String(sc.code || ''),
           audio: { sourceType: 'none' },
         })
@@ -223,7 +222,7 @@ export function IdeStep({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="tone-select" className="block text-sm font-medium text-slate-200 mb-1.5">
                   Gaya Penyampaian
@@ -277,24 +276,6 @@ export function IdeStep({
                   <option value={35}>35 detik</option>
                   <option value={45}>45 detik</option>
                   <option value={60}>60 detik</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="scene-count-select" className="block text-sm font-medium text-slate-200 mb-1.5">
-                  Jumlah Scene
-                </label>
-                <select
-                  id="scene-count-select"
-                  value={sceneCount}
-                  onChange={(e) => setSceneCount(Number(e.target.value))}
-                  className="w-full rounded-lg bg-[#0B0E14] border border-[#2A3346] px-3 py-2 text-sm text-white tabular-nums focus:outline-none focus:border-sky-500"
-                >
-                  {[3, 4, 5, 6, 7].map((n) => (
-                    <option key={n} value={n}>
-                      {n} Scene
-                    </option>
-                  ))}
                 </select>
               </div>
             </div>

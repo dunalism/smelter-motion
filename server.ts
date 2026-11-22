@@ -237,7 +237,7 @@ app.post('/api/generate-script', async (req, res) => {
       styleNuance = '',
       styleCardPrompt = '',
       targetDurationSec = 30,
-      sceneCount = 5,
+      sceneCount,
       aspectRatio = '9:16',
       paletteColors = { bg: '#060913', primary: '#29e7ff', secondary: '#b26bff', accent: '#ff3fd1', text: '#f0f7ff' },
     } = req.body ?? {};
@@ -320,6 +320,7 @@ app.post('/api/generate-script', async (req, res) => {
     if (Array.isArray(parsed.scenes)) {
       parsed.scenes = parsed.scenes.map((sc) => ({
         ...sc,
+        durationSec: Math.min(4, Math.max(0.5, Number(sc.durationSec) || 3.5)),
         emphasis: typeof sc.emphasis === 'string' ? sc.emphasis.trim() : '',
         code:
           typeof sc.code === 'string'
