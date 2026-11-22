@@ -14,7 +14,7 @@ Read this file first instead of scanning the repo. Use `search_codebase` or targ
 - Dev server: `bun run dev` (`bun server.ts`)
 - Build: `bun run build` (`vite build`)
 - Typecheck: `bun run lint` (`tsc --noEmit`)
-- Tests: `bun test` (46 tests across 9 `*.test.ts` files, ~586ms)
+- Tests: `bun test` (49 tests across 10 `*.test.ts` files, ~170ms)
 
 ## Architecture & Data Flow
 1. **State (`src/App.tsx`):** Single `ProjectState` (`useState`, initialized from `DEMO_PROJECT`), passed via `(project, onUpdateProject)` to step components (`ide` | `narasi` | `suara` | `animasi`) + `ExportModal` + `ApiKeyModal`.
@@ -30,7 +30,7 @@ Read this file first instead of scanning the repo. Use `search_codebase` or targ
 
 ## File Map
 - `src/types/studio.ts` — All core types: `ProjectState` (includes `subtitles`, `watermark?`, `scenes`, `seo?`), `SceneItem`, `SceneAudio`, `SeoMetadata`, `PaletteId` (11), `VideoStylePreset`, `SubtitleSettings` (`enabled`, `fontSize`, `position`, `style`, `accentColor`), `SubtitleStyle` (15 curated IDs: `tulisan_tangan`, `mesin_ketik`, `sorot_kata`, `stiker_kertas`, `pop_tebal`, `karaoke`, `kotak_putih`, `kotak_gelap`, `glitch`, `panduan_atas`, `elegan_atas`, `satu_kata`, `neon`, `kartu_selotip`, `garis_bawah`), `WatermarkSettings` (`enabled`, `platforms`, `position`, `opacity`, `scale`, `text?`), `WatermarkPlatform` (`instagram` | `youtube` | `tiktok` | `facebook`), `WatermarkPosition` (`bottom-left` | `bottom-right` | `top-left` | `top-right`).
-- `src/components/` — `TopBar.tsx`, `IdeStep.tsx`, `NarasiStep.tsx`, `SuaraStep.tsx`, `AnimasiStep.tsx` (preloads audio word timings, triggers `SubtitleStudioModal` & `WatermarkModal`), `ExportModal.tsx`, `ApiKeyModal.tsx`, `SeoPanel.tsx`, `SubtitleStudioModal.tsx`, `WatermarkModal.tsx`.
+- `src/components/` — `TopBar.tsx`, `IdeStep.tsx`, `NarasiStep.tsx`, `SuaraStep.tsx` (TTS generation + free browser `voicePreview` sample), `AnimasiStep.tsx` (preloads audio word timings, triggers `SubtitleStudioModal` & `WatermarkModal`), `ExportModal.tsx`, `ApiKeyModal.tsx`, `SeoPanel.tsx`, `SubtitleStudioModal.tsx`, `WatermarkModal.tsx`.
 - `src/engine/canvasRenderer.ts` — `compileSceneCode()`, `renderSceneFrame()` (renders scene + subtitle + watermark overlays). Exposes `MotionSceneContext` (`s`): `t`, `width`, `height`, `kamera`, `sfx`, `group`, `line`, `polyline`, `rect`, `circle`, `ellipse`, `arc`, `box3d`, `text`, `text3d`, `sparkle`, `burst`, Belah Warna helpers (`field`, `side`, `both`, `slab`, `disc`, `word`), math (`spring`, `stagger`, `keys`, `wave`, `at`, `lerp`, `rand`, `ease`).
 - `src/engine/motionMath.ts` — `spring`, `ease`, `stagger`, `keys`, `evaluateCamera`, `splitMultiSceneCode`, `inferSceneDurationFromCode`, `resolveSceneAtTime`.
 - `src/engine/wordTiming.ts` — Audio-to-subtitle word-level sync: `getWordTimings()` (sync cache + WAV PCM decode via `decodeWavPcmSamples()`/`alignWordsToPcm()`, fallback `computeSmartWordTimings()`), `ensureAudioWordTimings()` & `preloadProjectAudioTimings()` (async decode for MP3/WebM/OGG/URL).
@@ -40,7 +40,7 @@ Read this file first instead of scanning the repo. Use `search_codebase` or targ
 - `src/engine/sfxSynthesizer.ts` — Procedural Web Audio SFX.
 - `src/engine/scriptPrompt.ts`, `seoPrompt.ts` — Gemini prompt builders & metadata sanitizers.
 - `src/data/videoStyles.ts` (11 presets), `ttsVoices.ts` (TTS models + voices), `demoProject.ts`.
-- `src/utils/api.ts` (`postJson`, `ApiRequestError`), `apiKeyRules.ts`, `apiKeyVault.ts`.
+- `src/utils/api.ts` (`postJson`, `ApiRequestError`), `apiKeyRules.ts`, `apiKeyVault.ts`, `voicePreview.ts` (`speakVoiceSample()`, `stopVoiceSample()`, `getVoicePreviewTuning()`, `pickBrowserSpeechVoice()` — zero-token Web Speech API preview for `SuaraStep`).
 
 ## Conventions & Guardrails
 - **Theme:** Dark canvas `#0B0E14`, text `#E6ECF5`, fonts `Outfit` (display), `DM Sans` (sans), `JetBrains Mono` (mono) in `index.html` & `src/index.css`.

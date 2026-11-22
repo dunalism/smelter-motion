@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectState, SceneAudio } from '../types/studio';
 import { formatTimecode, getTotalDuration } from '../engine/motionMath';
 import { ApiRequestError, postJson } from '../utils/api';
+import { speakVoiceSample, stopVoiceSample } from '../utils/voicePreview';
 import {
   filterVoicesByGender,
   getVoicePreset,
@@ -73,7 +74,6 @@ export function SuaraStep({
 
   const [loadingSceneId, setLoadingSceneId] = useState<string | null>(null);
   const [batchLoading, setBatchLoading] = useState(false);
-  const [previewLoadingVoiceId, setPreviewLoadingVoiceId] = useState<string | null>(null);
   const [playingSampleVoiceId, setPlayingSampleVoiceId] = useState<string | null>(null);
   const [recordingSceneId, setRecordingSceneId] = useState<string | null>(null);
   const [masterUrlInput, setMasterUrlInput] = useState(project.masterAudioUrl ?? '');
@@ -82,8 +82,6 @@ export function SuaraStep({
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
-  const sampleAudioRef = useRef<HTMLAudioElement | null>(null);
-  const sampleCacheRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (hasApiKey && needsApiKeyAction) {
@@ -94,10 +92,7 @@ export function SuaraStep({
 
   useEffect(() => {
     return () => {
-      if (sampleAudioRef.current) {
-        sampleAudioRef.current.pause();
-        sampleAudioRef.current = null;
-      }
+      stopVoiceSample();
     };
   }, []);
 
@@ -115,14 +110,11 @@ export function SuaraStep({
   };
 
   const stopSampleAudio = () => {
-    if (sampleAudioRef.current) {
-      sampleAudioRef.current.pause();
-      sampleAudioRef.current = null;
-    }
+    stopVoiceSample();
     setPlayingSampleVoiceId(null);
   };
 
-  const handleToggleSampleVoice = async (voice: TtsVoicePreset) => {
+  const handleToggleSampleVoice = (voice: TtsVoicePreset) => {
     if (playingSampleVoiceId === voice.id) {
       stopSampleAudio();
       return;
@@ -131,59 +123,19 @@ export function SuaraStep({
     stopSampleAudio();
     setErrorMsg(null);
     setNeedsApiKeyAction(false);
-
-    const cacheKey = `${ttsModel}:${voice.id}`;
-    let dataUrl = sampleCacheRef.current.get(cacheKey);
-
-    if (!dataUrl) {
-      setPreviewLoadingVoiceId(voice.id);
-      try {
-        const res = await postJson<{ audioDataUrl: string }>('/api/generate-tts', {
-          text: voice.sampleText,
-          voiceName: voice.id,
-          style: voice.defaultStylePrompt,
-          model: ttsModel,
-        });
-        dataUrl = res.audioDataUrl;
-        sampleCacheRef.current.set(cacheKey, dataUrl);
-      } catch (err) {
-        if (
-          err instanceof ApiRequestError &&
-          (err.status === 401 || err.code === 'MISSING_API_KEY' || err.code === 'INVALID_API_KEY')
-        ) {
-          setNeedsApiKeyAction(true);
-        }
-        setErrorMsg(
-          err instanceof Error
-            ? err.message
-            : `Gagal memutar contoh suara ${voice.name}.`
-        );
-        setPreviewLoadingVoiceId(null);
-        return;
-      } finally {
-        setPreviewLoadingVoiceId(null);
-      }
-    }
-
-    const audio = new Audio(dataUrl);
-    sampleAudioRef.current = audio;
     setPlayingSampleVoiceId(voice.id);
-    audio.onended = () => {
-      if (sampleAudioRef.current === audio) {
-        sampleAudioRef.current = null;
-        setPlayingSampleVoiceId(null);
-      }
-    };
-    audio.onerror = () => {
-      if (sampleAudioRef.current === audio) {
-        sampleAudioRef.current = null;
-        setPlayingSampleVoiceId(null);
-      }
-      setErrorMsg(`Audio contoh ${voice.name} gagal diputar oleh browser.`);
-    };
-    try {
-      await audio.play();
-    } catch {
+
+    const started = speakVoiceSample(voice, {
+      onEnd: () => {
+        setPlayingSampleVoiceId((prev) => (prev === voice.id ? null : prev));
+      },
+      onError: (msg) => {
+        setPlayingSampleVoiceId((prev) => (prev === voice.id ? null : prev));
+        setErrorMsg(msg);
+      },
+    });
+
+    if (!started) {
       setPlayingSampleVoiceId(null);
     }
   };
@@ -537,9 +489,14 @@ export function SuaraStep({
           {/* Gender Filter & Voice Catalog */}
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-medium text-slate-300">
-                Karakter Suara ({TTS_VOICES.length} Pilihan — Wanita &amp; Pria)
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-slate-300">
+                  Karakter Suara ({TTS_VOICES.length} Pilihan — Wanita &amp; Pria)
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 font-medium">
+                  Contoh suara gratis (tanpa API key)
+                </span>
+              </div>
               <div className="flex items-center gap-1.5" role="tablist" aria-label="Filter gender suara">
                 <button
                   type="button"
@@ -586,7 +543,6 @@ export function SuaraStep({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[430px] overflow-y-auto pr-1">
               {visibleVoices.map((voice) => {
                 const isSelected = voiceName === voice.id;
-                const isSampleLoading = previewLoadingVoiceId === voice.id;
                 const isSamplePlaying = playingSampleVoiceId === voice.id;
                 const isFemale = voice.gender === 'female';
 
@@ -633,28 +589,19 @@ export function SuaraStep({
                         <button
                           type="button"
                           onClick={() => handleToggleSampleVoice(voice)}
-                          disabled={isSampleLoading}
                           aria-label={`Dengar contoh suara ${voice.name}`}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-medium shrink-0 transition-colors ${
                             isSamplePlaying
                               ? 'bg-sky-500 text-slate-950 border-sky-400 font-semibold'
                               : 'bg-[#151D2C] border-[#2B364B] text-slate-200 hover:bg-[#1E293E]'
-                          } disabled:opacity-50`}
+                          }`}
                         >
-                          {isSampleLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-                          ) : isSamplePlaying ? (
+                          {isSamplePlaying ? (
                             <Square className="w-3 h-3 fill-current" aria-hidden="true" />
                           ) : (
                             <Play className="w-3 h-3 fill-current" aria-hidden="true" />
                           )}
-                          <span>
-                            {isSampleLoading
-                              ? 'Memuat...'
-                              : isSamplePlaying
-                                ? 'Stop'
-                                : 'Dengar Contoh'}
-                          </span>
+                          <span>{isSamplePlaying ? 'Stop' : 'Dengar Contoh'}</span>
                         </button>
                       </div>
 
