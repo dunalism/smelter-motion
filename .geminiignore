@@ -1,0 +1,32 @@
+# Dependensi & Package Manager (Penyebab utama RAM penuh & CPU 100%)
+node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Folder Hasil Build & Cache Framework JS (Next.js, Vite, Nuxt, React)
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.vercel/
+.cache/
+.turbo/
+
+# Log, Testing & Coverage
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Aset Media Besar (Agar agen tidak membuang token & memori membaca file biner)
+*.mp4
+*.mov
+*.zip
+*.pdf
+public/videos/
